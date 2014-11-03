@@ -284,7 +284,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 141 (last added: spatial_softmax_param)
+// LayerParameter next available layer-specific ID: 142 (last added: spatial_softmax_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -359,7 +359,8 @@ message LayerParameter {
   optional PReLUParameter prelu_param = 137;
   optional PythonParameter python_param = 130;
   optional RecurrentParameter recurrent_param = 139;
-  optional RNNParameter rnn_param = 136;
+  optional ReductionParameter reduction_param = 136;
+  optional RNNParameter rnn_param = 141;
   optional ReLUParameter relu_param = 123;
   optional ReshapeParameter reshape_param = 133;
   optional SigmoidParameter sigmoid_param = 124;
@@ -751,6 +752,7 @@ message PythonParameter {
   optional string layer = 2;
 }
 
+<<<<<<< HEAD
 
 // Message that stores parameters used by RecurrentLayer
 message RecurrentParameter {
@@ -773,6 +775,35 @@ message RNNParameter {
   optional string recurrent_nonlinearity = 2 [default = "TanH"];
   // Number of hidden units. 0 (default) means use num_output from RecurrentParameter
   optional uint32 num_hidden = 3 [default = 0];
+=======
+// Message that stores parameters used by ReductionLayer
+message ReductionParameter {
+  enum ReductionOp {
+    SUM = 1;
+    ASUM = 2;
+    SUMSQ = 3;
+    MEAN = 4;
+  }
+
+  optional ReductionOp operation = 1 [default = SUM]; // reduction operation
+
+  // The first axis to reduce to a scalar -- may be negative to index from the
+  // end (e.g., -1 for the last axis).
+  // (Currently, only reduction along ALL "tail" axes is supported; reduction
+  // of axis M through N, where N < num_axes - 1, is unsupported.)
+  // Suppose we have an n-axis bottom Blob with shape:
+  //     (d0, d1, d2, ..., d(m-1), dm, d(m+1), ..., d(n-1)).
+  // If axis == m, the output Blob will have shape
+  //     (d0, d1, d2, ..., d(m-1)),
+  // and the ReductionOp operation is performed (d0 * d1 * d2 * ... * d(m-1))
+  // times, each including (dm * d(m+1) * ... * d(n-1)) individual data.
+  // If axis == 0 (the default), the output Blob always has the empty shape
+  // (count 1), performing reduction across the entire input --
+  // often useful for creating new loss functions.
+  optional int32 axis = 2 [default = 0];
+
+  optional float coeff = 3 [default = 1.0]; // coefficient for output
+>>>>>>> Add ReductionLayer to reduce any number of "tail" axes to a scalar value
 }
 
 // Message that stores parameters used by ReLULayer
