@@ -99,6 +99,42 @@ class NeuronLayerTest : public MultiDeviceTest<TypeParam> {
     GradientChecker<Dtype> checker(1e-2, 1e-3);
     checker.CheckGradientEltwise(&layer, blob_bottom_vec_, blob_top_vec_);
   }
+
+  void TestNestedDropoutForward(const float geom_rate) {
+    LayerParameter layer_param;
+    // Fill in the given geom_rate, unless it's 0.9, in which case we don't
+    // set it explicitly to test that 0.9 is the default.
+    if (geom_rate != 0.9) {
+      layer_param.mutable_nested_dropout_param()->set_geom_rate(geom_rate);
+    }
+    Caffe::set_phase(Caffe::TRAIN);
+    DropoutLayer<Dtype> layer(layer_param);
+    layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+    layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
+    // Now, check values
+    const Dtype* bottom_data = this->blob_bottom_->cpu_data();
+    const Dtype* top_data = this->blob_top_->cpu_data();
+    // float scale = 1. / (1. - layer_param.dropout_param().geom_rate());
+    const int count = this->blob_bottom_->count();
+    // Initialize num_kept to count the number of inputs NOT dropped out.
+    // TODO - Fill this in. And also check that dropout is nested.
+    /*int num_kept = 0;
+    for (int i = 0; i < count; ++i) {
+      if (top_data[i] != 0) {
+        ++num_kept;
+        EXPECT_EQ(top_data[i], bottom_data[i] * scale);
+      } else {
+      }
+    }
+    const Dtype std_error = sqrt(geom_rate * (1 - geom_rate) / count);
+    // Fail if the number dropped was more than 1.96 * std_error away from the
+    // expected number -- requires 95% confidence that the dropout layer is not
+    // obeying the given geom_rate for test failure.
+    const Dtype empirical_rate = 1 - num_kept / Dtype(count);
+    EXPECT_NEAR(empirical_dropout_ratio, dropout_ratio, 1.96 * std_error); */
+  }
+
+
 };
 
 TYPED_TEST_CASE(NeuronLayerTest, TestDtypesAndDevices);
@@ -387,6 +423,43 @@ TYPED_TEST(NeuronLayerTest, TestBNLLGradient) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   BNLLLayer<Dtype> layer(layer_param);
+  GradientChecker<Dtype> checker(1e-2, 1e-3);
+  checker.CheckGradientEltwise(&layer, this->blob_bottom_vec_,
+      this->blob_top_vec_);
+}
+
+TYPED_TEST(NeuronLayerTest, TestNestedDropoutTestPhase) {
+  typedef typename TypeParam::Dtype Dtype;
+  LayerParameter layer_param;
+  Caffe::set_phase(Caffe::TEST);
+  NestedDropoutLayer<Dtype> layer(layer_param);
+  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
+  // Now, check values
+  const Dtype* bottom_data = this->blob_bottom_->cpu_data();
+  const Dtype* top_data = this->blob_top_->cpu_data();
+  for (int i = 0; i < this->blob_bottom_->count(); ++i) {
+    if (top_data[i] != 0) {
+      EXPECT_EQ(top_data[i], bottom_data[i]);
+    }
+  }
+}
+
+TYPED_TEST(NeuronLayerTest, TestNestedDropoutGradient) {
+  typedef typename TypeParam::Dtype Dtype;
+  LayerParameter layer_param;
+  Caffe::set_phase(Caffe::TRAIN);
+  NestedDropoutLayer<Dtype> layer(layer_param);
+  GradientChecker<Dtype> checker(1e-2, 1e-3);
+  checker.CheckGradientEltwise(&layer, this->blob_bottom_vec_,
+      this->blob_top_vec_);
+}
+
+TYPED_TEST(NeuronLayerTest, TestNestedDropoutGradientTest) {
+  typedef typename TypeParam::Dtype Dtype;
+  LayerParameter layer_param;
+  Caffe::set_phase(Caffe::TEST);
+  NestedDropoutLayer<Dtype> layer(layer_param);
   GradientChecker<Dtype> checker(1e-2, 1e-3);
   checker.CheckGradientEltwise(&layer, this->blob_bottom_vec_,
       this->blob_top_vec_);
