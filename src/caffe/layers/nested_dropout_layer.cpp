@@ -20,7 +20,7 @@ void NestedDropoutLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   const int dim = bottom[0]->count() / bottom[0]->num();
   // Scale based on the expected value of units kept per input blob (1/p_).
   // Not positive that this is the correct normalization.
-  scale_ = dim * p;
+  scale_ = dim * p_;
 }
 
 template <typename Dtype>
@@ -43,11 +43,11 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const int size = count / num;
   if (Caffe::phase() == Caffe::TRAIN) {
     // Create random number for each bottom.
-    caffe_rng_geometric(num, geom_param_, mask_unit_num);
+    caffe_rng_geometric(num, p_, mask_unit_num);
     for (int i = 0; i < num; ++i) {
       // Scale or mask appropriately. Not sure if this is the best way to
       // access/change the data.
-      Dtype* current_bottom = bottom_data + bottom[0]->offset(i);
+      const Dtype* current_bottom = bottom_data + bottom[0]->offset(i);
       Dtype* current_top = top_data + top[0]->offset(i);
       for (int j = 0; j < mask_unit_num[i]; ++j) {
         current_top[j] = current_bottom[j] * scale_;
@@ -56,7 +56,7 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         current_top[j] = Dtype(0);
       }
     }
-  } else 1{
+  } else {
     caffe_copy(bottom[0]->count(), bottom_data, top_data);
   }
 }
@@ -68,11 +68,22 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   if (propagate_down[0]) {
     const Dtype* top_diff = top[0]->cpu_diff();
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
+    const int count = bottom[0]->count();
+    const int num = bottom[0]->num();
+    const int size = count / num;
     if (Caffe::phase() == Caffe::TRAIN) {
-      const unsigned int* mask = mask_vec_.cpu_data();
-      const int count = bottom[0]->count();
-      for (int i = 0; i < count; ++i) {
-        bottom_diff[i] = top_diff[i] * mask[i] * scale_;
+      const unsigned int* masked_unit_num = rand_vec_.cpu_data();
+      for (int i = 0; i < num; ++i) {
+        // Scale or mask appropriately. Not sure if this is the best way to
+        // access/change the data.
+        Dtype* current_bottom = bottom_diff + bottom[0]->offset(i);
+        const Dtype* current_top = top_diff + top[0]->offset(i);
+        for (int j = 0; j < masked_unit_num[i]; ++j) {
+          current_bottom[j] = current_top[j] * scale_;
+        }
+        for (int j = masked_unit_num[i]; j < size; ++j) {
+          current_bottom[j] = Dtype(0);
+        }
       }
     } else {
       caffe_copy(top[0]->count(), top_diff, bottom_diff);
