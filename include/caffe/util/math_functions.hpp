@@ -86,10 +86,10 @@ template <typename Dtype>
 void caffe_rng_bernoulli(const int n, const Dtype p, unsigned int* r);
 
 template <typename Dtype>
-void caffe_rng_geometric(const int n, const Dtype p, int* r);
+void caffe_rng_geometric(const int n, const Dtype p, int* r, const int offset);
 
 template <typename Dtype>
-void caffe_rng_geometric(const int n, const Dtype p, unsigned int* r);
+void caffe_rng_geometric(const int n, const Dtype p, unsigned int* r, const int offset);
 
 template <typename Dtype>
 void caffe_exp(const int n, const Dtype* a, Dtype* y);
@@ -232,7 +232,7 @@ template <typename Dtype>
 void caffe_gpu_rng_bernoulli(const int n, const Dtype p, int* r);
 
 template <typename Dtype>
-void caffe_gpu_rng_geometric(const int n, const Dtype p, int* r);
+void caffe_gpu_rng_geometric(const int n, const Dtype p, int* r, const int offset);
 
 template <typename Dtype>
 void caffe_gpu_dot(const int n, const Dtype* x, const Dtype* y, Dtype* out);

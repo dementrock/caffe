@@ -316,7 +316,7 @@ template
 void caffe_rng_bernoulli<float>(const int n, const float p, unsigned int* r);
 
 template <typename Dtype>
-void caffe_rng_geometric(const int n, const Dtype p, int* r) {
+void caffe_rng_geometric(const int n, const Dtype p, int* r, const int offset) {
   CHECK_GE(n, 0);
   CHECK(r);
   CHECK_GT(p, 0);
@@ -325,18 +325,18 @@ void caffe_rng_geometric(const int n, const Dtype p, int* r) {
   boost::variate_generator<caffe::rng_t*, boost::geometric_distribution<Dtype> >
       variate_generator(caffe_rng(), random_distribution);
   for (int i = 0; i < n; ++i) {
-    r[i] = variate_generator();
+    r[i] = variate_generator() + offset;
   }
 }
 
 template
-void caffe_rng_geometric<double>(const int n, const double p, int* r);
+void caffe_rng_geometric<double>(const int n, const double p, int* r, const int offset);
 
 template
-void caffe_rng_geometric<float>(const int n, const float p, int* r);
+void caffe_rng_geometric<float>(const int n, const float p, int* r, const int offset);
 
 template <typename Dtype>
-void caffe_rng_geometric(const int n, const Dtype p, unsigned int* r) {
+void caffe_rng_geometric(const int n, const Dtype p, unsigned int* r, const int offset) {
   CHECK_GE(n, 0);
   CHECK(r);
   CHECK_GT(p, 0);
@@ -345,15 +345,15 @@ void caffe_rng_geometric(const int n, const Dtype p, unsigned int* r) {
   boost::variate_generator<caffe::rng_t*, boost::geometric_distribution<Dtype> >
       variate_generator(caffe_rng(), random_distribution);
   for (int i = 0; i < n; ++i) {
-    r[i] = static_cast<unsigned int>(variate_generator());
+    r[i] = static_cast<unsigned int>(variate_generator() + offset);
   }
 }
 
 template
-void caffe_rng_geometric<double>(const int n, const double p, unsigned int* r);
+void caffe_rng_geometric<double>(const int n, const double p, unsigned int* r, const int offset);
 
 template
-void caffe_rng_geometric<float>(const int n, const float p, unsigned int* r);
+void caffe_rng_geometric<float>(const int n, const float p, unsigned int* r, const int offset);
 
 template <>
 float caffe_cpu_strided_dot<float>(const int n, const float* x, const int incx,
