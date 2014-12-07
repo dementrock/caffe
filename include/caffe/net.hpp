@@ -129,6 +129,8 @@ class Net {
   }
   /// @brief returns the parameters
   inline vector<shared_ptr<Blob<Dtype> > >& params() { return params_; }
+	/// @brief returns the layers and parameters for nested dropout.
+	inline const vector<pair<int, int> >& param_layer_indices() { return param_layer_indices_; }
   /// @brief returns the parameter learning rate multipliers
   inline vector<float>& params_lr() { return params_lr_; }
   inline vector<float>& params_weight_decay() { return params_weight_decay_; }
