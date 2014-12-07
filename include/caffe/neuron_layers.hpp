@@ -337,6 +337,10 @@ class NestedDropoutLayer : public NeuronLayer<Dtype> {
   Dtype p_;
   /// the scale for undropped inputs at train time @f$ dim * p @f$
   Dtype scale_;
+	/// the current index of the first non-converged unit (starts at 0)
+	int unit_num_;
+	/// Absolute threshold for convergence.
+	Dtype converge_thresh_;
 };
 
 /**
