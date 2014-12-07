@@ -118,20 +118,21 @@ class NeuronLayerTest : public MultiDeviceTest<TypeParam> {
     const int count = this->blob_bottom_->count();
     // Initialize num_kept to count the number of inputs NOT dropped out.
     // TODO - Fill this in. And also check that dropout is nested.
-    /*int num_kept = 0;
+    int num_kept = 0;
     for (int i = 0; i < count; ++i) {
       if (top_data[i] != 0) {
         ++num_kept;
-        EXPECT_EQ(top_data[i], bottom_data[i] * scale);
+        //EXPECT_EQ(top_data[i], bottom_data[i] * scale);
       } else {
       }
     }
-    const Dtype std_error = sqrt(geom_rate * (1 - geom_rate) / count);
+    // const Dtype std_error = sqrt(geom_rate * (1 - geom_rate) / count);
     // Fail if the number dropped was more than 1.96 * std_error away from the
     // expected number -- requires 95% confidence that the dropout layer is not
     // obeying the given geom_rate for test failure.
-    const Dtype empirical_rate = 1 - num_kept / Dtype(count);
-    EXPECT_NEAR(empirical_dropout_ratio, dropout_ratio, 1.96 * std_error); */
+    EXPECT_NEAR(num_kept, 1.0 / dropout_param().geom_rate(), 5);
+    // const Dtype empirical_rate = 1 - num_kept / Dtype(count);
+    // EXPECT_NEAR(empirical_dropout_ratio, dropout_ratio, 1.96 * std_error);
   }
 
 
