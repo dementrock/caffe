@@ -800,12 +800,12 @@ void NestedDropoutSolver<Dtype>::ComputeUpdateValue() {
   vector<shared_ptr<Blob<Dtype> > >& net_params = this->net_->params();
   vector<float>& net_params_lr = this->net_->params_lr();
   vector<float>& net_params_weight_decay = this->net_->params_weight_decay();
-	// Get layer names so we can figure out which layer the param belongs to.
-	const vector<string>& layer_names = this->net_->layer_names();
-	const vector<pair<int, int> > param_to_layer - this->net_->param_layer_indices();
+  // Get layer names so we can figure out which layer the param belongs to.
+  const vector<string>& layer_names = this->net_->layer_names();
+  const vector<pair<int, int> > param_to_layer = this->net_->param_layer_indices();
 
   // get the learning rate
-  Dtype rate = GetLearningRate();
+  Dtype rate = this->GetLearningRate();
   if (this->param_.display() && this->iter_ % this->param_.display() == 0) {
     LOG(INFO) << "Iteration " << this->iter_ << ", lr = " << rate;
   }
@@ -816,58 +816,58 @@ void NestedDropoutSolver<Dtype>::ComputeUpdateValue() {
   case Caffe::CPU:
     for (int param_id = 0; param_id < net_params.size(); ++param_id) {
 
-			// On the nested dropout layer, we want to fix the ratio between the
-			// gradient (net_params[param_id]->cpu_diff()) and decay coeff (weight_decay)
-			// Something like weight_decay = ratio / net_params[param_id].cpu_diff())
+      // On the nested dropout layer, we want to fix the ratio between the
+      // gradient (net_params[param_id]->cpu_diff()) and decay coeff (weight_decay)
+      // Something like weight_decay = ratio / net_params[param_id].cpu_diff())
 
-			// Need to figure out which layer this parameter belongs to. (Or separately
-			// iterate over parameters in nested dropout layer)
-			// protected param_layer_indices_ is a list of pairs (layer id, param id)
-			// To get owner layer: net_->layer_names_[net_->param_layer_indices_[param_id].first]
+      // Need to figure out which layer this parameter belongs to. (Or separately
+      // iterate over parameters in nested dropout layer)
+      // protected param_layer_indices_ is a list of pairs (layer id, param id)
+      // To get owner layer: net_->layer_names_[net_->param_layer_indices_[param_id].first]
 
-			Dtype local_decay;
-			string param_layer_name = layer_names[param_to_layer[param_id].first];
-		  if (this->net_->layer_by_name(param_layer_name)->type() ==
-					LayerParameter_LayerType_NESTED_DROPOUT) {
-				// Define local decay here, based on the correct ratio and param diff.
-				local_decay = NULL;
-			} else {
+      Dtype local_decay;
+      string param_layer_name = layer_names[param_to_layer[param_id].first];
+      if (this->net_->layer_by_name(param_layer_name)->type() ==
+        LayerParameter_LayerType_NESTED_DROPOUT) {
+        // Define local decay here, based on the correct ratio and param diff.
+        LOG(INFO) << "in nested dropout layer";
+      } else {
         local_decay = weight_decay * net_params_weight_decay[param_id];
-			}
+      }
 
       // Compute the value to history, and then copy them to the blob's diff.
-			// net_params_lr is a multiplier on the learning rate for this parameter.
+      // net_params_lr is a multiplier on the learning rate for this parameter.
       Dtype local_rate = rate * net_params_lr[param_id];
 
-			if (local_decay) {
+      if (local_decay) {
         if (regularization_type == "L2") {
           // add weight decay
-					// param_diff = param_diff + local_decay * param_data
+          // param_diff = param_diff + local_decay * param_data
           caffe_axpy(net_params[param_id]->count(),
               local_decay,
               net_params[param_id]->cpu_data(),
               net_params[param_id]->mutable_cpu_diff());
         } else if (regularization_type == "L1") {
-					// param_diff = sign(net_param) * local_decay + param_diff
+          // param_diff = sign(net_param) * local_decay + param_diff
           caffe_cpu_sign(net_params[param_id]->count(),
               net_params[param_id]->cpu_data(),
-              temp_[param_id]->mutable_cpu_data());
+              this->temp_[param_id]->mutable_cpu_data());
           caffe_axpy(net_params[param_id]->count(),
               local_decay,
-              temp_[param_id]->cpu_data(),
+              this->temp_[param_id]->cpu_data(),
               net_params[param_id]->mutable_cpu_diff());
         } else {
           LOG(FATAL) << "Unknown regularization type: " << regularization_type;
         }
       }
 
-			// history = param_diff * local_rate + history * momentum for this parameter.
+      // history = param_diff * local_rate + history * momentum for this parameter.
       caffe_cpu_axpby(net_params[param_id]->count(), local_rate,
                 net_params[param_id]->cpu_diff(), momentum,
-                history_[param_id]->mutable_cpu_data());
+                this->history_[param_id]->mutable_cpu_data());
       // copy [history to net_param diff]
       caffe_copy(net_params[param_id]->count(),
-          history_[param_id]->cpu_data(),
+          this->history_[param_id]->cpu_data(),
           net_params[param_id]->mutable_cpu_diff());
     }
     break;
@@ -888,10 +888,10 @@ void NestedDropoutSolver<Dtype>::ComputeUpdateValue() {
         } else if (regularization_type == "L1") {
           caffe_gpu_sign(net_params[param_id]->count(),
               net_params[param_id]->gpu_data(),
-              temp_[param_id]->mutable_gpu_data());
+              this->temp_[param_id]->mutable_gpu_data());
           caffe_gpu_axpy(net_params[param_id]->count(),
               local_decay,
-              temp_[param_id]->gpu_data(),
+              this->temp_[param_id]->gpu_data(),
               net_params[param_id]->mutable_gpu_diff());
         } else {
           LOG(FATAL) << "Unknown regularization type: " << regularization_type;
@@ -900,10 +900,10 @@ void NestedDropoutSolver<Dtype>::ComputeUpdateValue() {
 
       caffe_gpu_axpby(net_params[param_id]->count(), local_rate,
                 net_params[param_id]->gpu_diff(), momentum,
-                history_[param_id]->mutable_gpu_data());
+                this->history_[param_id]->mutable_gpu_data());
       // copy
       caffe_copy(net_params[param_id]->count(),
-          history_[param_id]->gpu_data(),
+          this->history_[param_id]->gpu_data(),
           net_params[param_id]->mutable_gpu_diff());
     }
 #else
