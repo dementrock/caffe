@@ -45,7 +45,6 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   int* mask_unit_num = rand_vec_.mutable_cpu_data();
   const int count = bottom[0]->count();
   const int num = bottom[0]->num();
-  const int size = count / num;
   // For a fc layer output, num_pix should be one.
   const int num_pix = bottom[0]->width() * bottom[0]->height();
   const int num_channels = bottom[0]->channels();
@@ -65,14 +64,6 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       // Note: this assumes bottom_data to be a 2-D blob of num*d dimension.
       // For conv outputs, bottom_data will be a 4-D blob of num*c*w*h.
       // In this case, we want to dropout by channel rather than by d.
-      /* const Dtype* current_bottom = bottom_data + bottom[0]->offset(i);
-      Dtype* current_top = top_data + top[0]->offset(i);
-      for (int j = 0; j < mask_unit_num[i]; ++j) {
-        current_top[j] = current_bottom[j] * scale_;
-      }
-      for (int j = mask_unit_num[i]; j < size; ++j) {
-        current_top[j] = Dtype(0);
-      } */
       std::cout << unit_num_ << ":" <<  mask_unit_num[i] << ", ";
       // New code for conv:
       // First scale the channels that are not being dropped out.
@@ -115,8 +106,6 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
     const int count = bottom[0]->count();
     const int num = bottom[0]->num();
-    // std::cout << "Checking number of input\n";
-    const int size = count / num;
     // For a fc layer output, num_pix should be one.
     const int num_pix = bottom[0]->width() * bottom[0]->height();
 
