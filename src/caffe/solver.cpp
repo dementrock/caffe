@@ -830,6 +830,7 @@ void NestedDropoutSolver<Dtype>::ComputeUpdateValue() {
       if (this->net_->layer_by_name(param_layer_name)->type() ==
         LayerParameter_LayerType_NESTED_DROPOUT) {
         // TODO: Define local decay here, based on the correct ratio and param diff.
+        local_decay = reg_ratio * net_params_weight_decay[param_id] / net_params[param_id].cpu_diff();
         LOG(INFO) << "in nested dropout layer";
       } else {
         local_decay = weight_decay * net_params_weight_decay[param_id];
