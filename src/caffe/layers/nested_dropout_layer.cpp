@@ -124,6 +124,7 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       // std::cout << "Computing gradient\n";
       const int* mask_unit_num = rand_vec_.cpu_data();
       for (int i = 0; i < num; ++i) {
+        // TODO: Set diff to 0 for first unit_num_ gradients.
         // Scale or mask appropriately. Not sure if this is the best way to
         // access/change the data.
         // New code for conv layer (but also still works with fc layer)
