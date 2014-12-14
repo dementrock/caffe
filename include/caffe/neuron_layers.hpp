@@ -332,7 +332,7 @@ class NestedDropoutLayer : public NeuronLayer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
   /// Vector holding the units that are kept.
-  Blob<unsigned int> rand_vec_;
+  Blob<int> rand_vec_;
   /// the geometric distribution rate parameter @f$ p @f$.
   Dtype p_;
   /// the scale for undropped inputs at train time @f$ dim * p @f$

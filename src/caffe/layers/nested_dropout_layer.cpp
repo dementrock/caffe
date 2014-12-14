@@ -39,19 +39,24 @@ void NestedDropoutLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
+  std::cout << "starting forward pass\n";
   const Dtype* bottom_data = bottom[0]->cpu_data();
   Dtype* top_data = top[0]->mutable_cpu_data();
-  unsigned int* mask_unit_num = rand_vec_.mutable_cpu_data();
+  int* mask_unit_num = rand_vec_.mutable_cpu_data();
   const int count = bottom[0]->count();
   const int num = bottom[0]->num();
   const int size = count / num;
   // For a fc layer output, num_pix should be one.
   const int num_pix = bottom[0]->width() * bottom[0]->height();
+  const int num_channels = bottom[0]->channels();
 
+  // std::cout << num_channels << "\n";
   if (Caffe::phase() == Caffe::TRAIN) {
     // Create random number for each bottom.
     caffe_rng_geometric(num, p_, mask_unit_num, unit_num_);
+    // std::cout << "Generated geometric numbers\n";
     for (int i = 0; i < num; ++i) {
+      // std::cout << "Beginning of for loop., i= " << i << "\n";
       // Scale or mask appropriately. Not sure if this is the best way to
       // access/change the data.
       // TODO - Vectorize this operation. (Construct a vector, mask and then
@@ -68,17 +73,25 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       for (int j = mask_unit_num[i]; j < size; ++j) {
         current_top[j] = Dtype(0);
       } */
+      std::cout << unit_num_ << ":" <<  mask_unit_num[i] << ", ";
       // New code for conv:
       // First scale the channels that are not being dropped out.
+      if (mask_unit_num[i] > num_channels) {
+        mask_unit_num[i] = num_channels;
+      }
       for (int j = 0; j < mask_unit_num[i]; ++j) {
+        // std::cout << "Keeping channel " << j << "\n";
+        // std::cout << "Actually keeping channel " << j << "\n";
         Dtype* current_channel = top_data + top[0]->offset(i, j);
         const Dtype* current_bottom_channel = bottom_data + bottom[0]->offset(i, j);
         for (int k = 0; k < num_pix; ++k) {
           current_channel[k] = current_bottom_channel[k] * scale_;
         }
       }
+      // std::cout << "Moving on to masking data\n";
       // Next set the rest of the channels to 0.
-      for (int j = mask_unit_num[i]; j < size; ++j) {
+      for (int j = mask_unit_num[i]; j < num_channels; ++j) {
+        // std::cout << "Masking channel " << j << "\n";
         Dtype* current_channel = top_data + top[0]->offset(i, j);
         for (int k = 0; k < num_pix; ++k) {
           current_channel[k] = Dtype(0);
@@ -86,6 +99,7 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       }
 
     }
+    // std::cout << "End of forward pass\n";
   } else {
     caffe_copy(bottom[0]->count(), bottom_data, top_data);
   }
@@ -95,37 +109,25 @@ template <typename Dtype>
 void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
+  std::cout << "Starting backward pass\n";
   if (propagate_down[0]) {
     const Dtype* top_diff = top[0]->cpu_diff();
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
     const int count = bottom[0]->count();
     const int num = bottom[0]->num();
-    CHECK(num == 1); // Assuming this doesn't fail, TODO remove loop. If it fails, fix convergence check.
+    // std::cout << "Checking number of input\n";
     const int size = count / num;
     // For a fc layer output, num_pix should be one.
     const int num_pix = bottom[0]->width() * bottom[0]->height();
 
     if (Caffe::phase() == Caffe::TRAIN) {
-      // First check for converge of the channel/unit with number unit_num_:
-      const Dtype* first_top_unit = top_diff + top[0]->offset(0, unit_num_);
-      if (caffe_cpu_asum(num_pix, first_top_unit) < converge_thresh_ * num_pix) {
-        DLOG(INFO) << "Unit " << unit_num_ << " converged. :)";
-        unit_num_++;
-      }
-
-      const unsigned int* mask_unit_num = rand_vec_.cpu_data();
+      // std::cout << "Computing gradient\n";
+      const int* mask_unit_num = rand_vec_.cpu_data();
       for (int i = 0; i < num; ++i) {
         // Scale or mask appropriately. Not sure if this is the best way to
         // access/change the data.
-        /* Dtype* current_bottom = bottom_diff + bottom[0]->offset(i);
-        const Dtype* current_top = top_diff + top[0]->offset(i);
-        for (int j = 0; j < mask_unit_num[i]; ++j) {
-          current_bottom[j] = current_top[j] * scale_;
-        }
-        for (int j = mask_unit_num[i]; j < size; ++j) {
-          current_bottom[j] = Dtype(0);
-        } */
         // New code for conv layer (but also still works with fc layer)
+        // std::cout << "Scaling gradient num " << i << "unit_num=" << mask_unit_num[i] << "\n";
         for (int j = 0; j < mask_unit_num[i]; ++j) {
           Dtype* current_channel = bottom_diff + bottom[0]->offset(i, j);
           const Dtype* current_top_channel =  top_diff + top[0]->offset(i, j);
@@ -134,16 +136,43 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
           }
         }
         // Next set the rest of the channels to 0.
-        for (int j = mask_unit_num[i]; j < size; ++j) {
+        // std::cout << "Setting some units to 0\n";
+        for (int j = mask_unit_num[i]; j < top[0]->channels(); ++j) {
           Dtype* current_channel = bottom_diff + bottom[0]->offset(i, j);
           for (int k = 0; k < num_pix; ++k) {
             current_channel[k] = Dtype(0);
           }
         }
       }
+      // First check for converge of the channel/unit with number unit_num_:
+      // If any of the gradients/diffs is larger than thresh, then we haven't
+      // converged.
+      // std::cout << "Checking for convergence\n";
+      bool converged = true;
+      for (int i = 0; i < num; ++i) {
+        const Dtype* top_unit_i = top_diff + top[0]->offset(i, unit_num_);
+        if (caffe_cpu_asum(num_pix, top_unit_i) > converge_thresh_ * num_pix) {
+          std::cout << "\nDid not converge, diff value:" << caffe_cpu_asum(num_pix, top_unit_i) << "\n";
+          converged = false;
+          break;
+        }
+        else {
+          std::cout << "diff: " << caffe_cpu_asum(num_pix, top_unit_i) << ", ";
+        }
+      }
+      if (converged) {
+        std::cout << "Unit " << unit_num_ << " converged. :)\n";
+        // Only increase if we have more channels that haven't converged.
+        if (unit_num_ < bottom[0]->channels() - 1) {
+          unit_num_++;
+        }
+      }
+
+
     } else {
       caffe_copy(top[0]->count(), top_diff, bottom_diff);
     }
+    // std::cout << "Finished loop.\n";
   }
 }
 
