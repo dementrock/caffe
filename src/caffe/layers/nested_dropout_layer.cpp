@@ -33,13 +33,13 @@ void NestedDropoutLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   NeuronLayer<Dtype>::Reshape(bottom, top);
   // Set up the cache for random number generation
   // This vector holds the number of units to NOT mask for each input blob.
+	// For each element e, this layer will dropout all but the first e channels/units.
   rand_vec_.Reshape(bottom[0]->num(), 1, 1, 1);
 }
 
 template <typename Dtype>
 void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
-  std::cout << "starting forward pass\n";
   const Dtype* bottom_data = bottom[0]->cpu_data();
   Dtype* top_data = top[0]->mutable_cpu_data();
   int* mask_unit_num = rand_vec_.mutable_cpu_data();
@@ -49,40 +49,30 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const int num_pix = bottom[0]->width() * bottom[0]->height();
   const int num_channels = bottom[0]->channels();
 
-  // std::cout << num_channels << "\n";
   if (Caffe::phase() == Caffe::TRAIN) {
     // Create random number for each bottom.
     caffe_rng_geometric(num, p_, mask_unit_num, unit_num_);
-    // std::cout << "Generated geometric numbers\n";
     for (int i = 0; i < num; ++i) {
-      // std::cout << "Beginning of for loop., i= " << i << "\n";
       // Scale or mask appropriately. Not sure if this is the best way to
       // access/change the data.
       // TODO - Vectorize this operation. (Construct a vector, mask and then
       // use axbpy to multiply the mask by the bottom data to produce the
       // top data.
-      // Note: this assumes bottom_data to be a 2-D blob of num*d dimension.
-      // For conv outputs, bottom_data will be a 4-D blob of num*c*w*h.
-      // In this case, we want to dropout by channel rather than by d.
-      std::cout << unit_num_ << ":" <<  mask_unit_num[i] << ", ";
-      // New code for conv:
+      // For conv outputs, bottom_data will be a 4-D blob of num*c*w*h,
+			// dropout by channel.
       // First scale the channels that are not being dropped out.
       if (mask_unit_num[i] > num_channels) {
         mask_unit_num[i] = num_channels;
       }
       for (int j = 0; j < mask_unit_num[i]; ++j) {
-        // std::cout << "Keeping channel " << j << "\n";
-        // std::cout << "Actually keeping channel " << j << "\n";
         Dtype* current_channel = top_data + top[0]->offset(i, j);
         const Dtype* current_bottom_channel = bottom_data + bottom[0]->offset(i, j);
         for (int k = 0; k < num_pix; ++k) {
           current_channel[k] = current_bottom_channel[k] * scale_;
         }
       }
-      // std::cout << "Moving on to masking data\n";
       // Next set the rest of the channels to 0.
       for (int j = mask_unit_num[i]; j < num_channels; ++j) {
-        // std::cout << "Masking channel " << j << "\n";
         Dtype* current_channel = top_data + top[0]->offset(i, j);
         for (int k = 0; k < num_pix; ++k) {
           current_channel[k] = Dtype(0);
@@ -90,7 +80,6 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       }
 
     }
-    // std::cout << "End of forward pass\n";
   } else {
     caffe_copy(bottom[0]->count(), bottom_data, top_data);
   }
@@ -110,15 +99,16 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const int num_pix = bottom[0]->width() * bottom[0]->height();
 
     if (Caffe::phase() == Caffe::TRAIN) {
-      // std::cout << "Computing gradient\n";
       const int* mask_unit_num = rand_vec_.cpu_data();
       for (int i = 0; i < num; ++i) {
-        // TODO: Set diff to 0 for first unit_num_ gradients.
-        // Scale or mask appropriately. Not sure if this is the best way to
-        // access/change the data.
-        // New code for conv layer (but also still works with fc layer)
-        // std::cout << "Scaling gradient num " << i << "unit_num=" << mask_unit_num[i] << "\n";
-        for (int j = 0; j < mask_unit_num[i]; ++j) {
+        // Set diff to 0 for first unit_num_ gradients, scale the middle, the mask the rest
+				for (int j = 0; j < unit_num_; ++j) {
+          Dtype* current_channel = bottom_diff + bottom[0]->offset(i, j);
+					for (int k = 0; k < num_pix; ++k) {
+            current_channel[k] = Dtype(0);
+          }
+				}
+        for (int j = unit_num_; j < mask_unit_num[i]; ++j) {
           Dtype* current_channel = bottom_diff + bottom[0]->offset(i, j);
           const Dtype* current_top_channel =  top_diff + top[0]->offset(i, j);
           for (int k = 0; k < num_pix; ++k) {
@@ -126,7 +116,6 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
           }
         }
         // Next set the rest of the channels to 0.
-        // std::cout << "Setting some units to 0\n";
         for (int j = mask_unit_num[i]; j < top[0]->channels(); ++j) {
           Dtype* current_channel = bottom_diff + bottom[0]->offset(i, j);
           for (int k = 0; k < num_pix; ++k) {
@@ -134,10 +123,10 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
           }
         }
       }
+			// ---- Code for unit sweeping ----
       // First check for converge of the channel/unit with number unit_num_:
       // If any of the gradients/diffs is larger than thresh, then we haven't
       // converged.
-      // std::cout << "Checking for convergence\n";
       bool converged = true;
       for (int i = 0; i < num; ++i) {
         const Dtype* top_unit_i = top_diff + top[0]->offset(i, unit_num_);
@@ -162,7 +151,6 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     } else {
       caffe_copy(top[0]->count(), top_diff, bottom_diff);
     }
-    // std::cout << "Finished loop.\n";
   }
 }
 
