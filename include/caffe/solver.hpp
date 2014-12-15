@@ -136,6 +136,7 @@ class NestedDropoutSolver : public SGDSolver<Dtype> {
 
  protected:
   virtual void ComputeUpdateValue();
+  vector<shared_ptr<Blob<Dtype> > > weight_decay_;
 
   DISABLE_COPY_AND_ASSIGN(NestedDropoutSolver);
 };

@@ -65,7 +65,7 @@ message NetParameter {
 // NOTE
 // Update the next available ID when you add a new SolverParameter field.
 //
-// SolverParameter next available ID: 35 (last added: stepvalue)
+// SolverParameter next available ID: 36 (last added: gradient_ratio)
 message SolverParameter {
   //////////////////////////////////////////////////////////////////////////////
   // Specifying the train and test networks
@@ -165,6 +165,9 @@ message SolverParameter {
 
   // If false, don't save a snapshot after training finishes.
   optional bool snapshot_after_train = 28 [default = true];
+
+  // gradient ratio for NestedDropout Solver
+  optional float gradient_ratio = 35;
 }
 
 // A message that stores the solver snapshots
