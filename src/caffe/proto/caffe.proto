@@ -630,6 +630,8 @@ message PoolingParameter {
 // Message that stores parameters used by NestedDropoutLayer
 message NestedDropoutParameter {
   optional float geom_rate = 1 [default = 0.9]; // geometric distr rate
+  optional float converge_threshold = 2 [default = 0.000001]; // the threshold for unit convergence.
+  optional bool unit_sweep = 3 [default = true]; // whether or not to do unit sweeping
 }
 
 // Message that stores parameters used by PowerLayer

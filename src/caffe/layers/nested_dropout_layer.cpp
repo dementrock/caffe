@@ -24,7 +24,9 @@ void NestedDropoutLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   // scale_ = dim * p_;
   scale_ = 1.0;
   unit_num_ = 0;
-  converge_thresh_ = 1e-3;
+  // converge_thresh_ = 1e-5;
+  converge_thresh_ = this->layer_param_.nested_dropout_param().converge_threshold();
+  unit_sweep_ = this->layer_param_.nested_dropout_param().unit_sweep();
 }
 
 template <typename Dtype>
@@ -43,7 +45,6 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* bottom_data = bottom[0]->cpu_data();
   Dtype* top_data = top[0]->mutable_cpu_data();
   int* mask_unit_num = rand_vec_.mutable_cpu_data();
-  const int count = bottom[0]->count();
   const int num = bottom[0]->num();
   // For a fc layer output, num_pix should be one.
   const int num_pix = bottom[0]->width() * bottom[0]->height();
@@ -89,11 +90,10 @@ template <typename Dtype>
 void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
-  std::cout << "Starting backward pass\n";
+  // std::cout << "Starting backward pass\n";
   if (propagate_down[0]) {
     const Dtype* top_diff = top[0]->cpu_diff();
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
-    const int count = bottom[0]->count();
     const int num = bottom[0]->num();
     // For a fc layer output, num_pix should be one.
     const int num_pix = bottom[0]->width() * bottom[0]->height();
@@ -123,7 +123,7 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
           }
         }
       }
-			// ---- Code for unit sweeping ----
+      // ---- Code for unit sweeping ----
       // First check for converge of the channel/unit with number unit_num_:
       // If any of the gradients/diffs is larger than thresh, then we haven't
       // converged.
@@ -131,15 +131,15 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       for (int i = 0; i < num; ++i) {
         const Dtype* top_unit_i = top_diff + top[0]->offset(i, unit_num_);
         if (caffe_cpu_asum(num_pix, top_unit_i) > converge_thresh_ * num_pix) {
-          std::cout << "\nDid not converge, diff value:" << caffe_cpu_asum(num_pix, top_unit_i) << "\n";
+          // std::cout << "\nDid not converge, diff value:" << caffe_cpu_asum(num_pix, top_unit_i) << "\n";
           converged = false;
           break;
         }
         else {
-          std::cout << "diff: " << caffe_cpu_asum(num_pix, top_unit_i) << ", ";
+          // std::cout << "diff: " << caffe_cpu_asum(num_pix, top_unit_i) << ", ";
         }
       }
-      if (converged) {
+      if (converged && unit_sweep_) {
         std::cout << "Unit " << unit_num_ << " converged. :)\n";
         // Only increase if we have more channels that haven't converged.
         if (unit_num_ < bottom[0]->channels() - 1) {
