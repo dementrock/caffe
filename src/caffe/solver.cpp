@@ -841,6 +841,7 @@ void NestedDropoutSolver<Dtype>::ComputeUpdateValue() {
 
       if (layers[param_to_layer[param_id].first]->type() ==
         LayerParameter_LayerType_NESTED_DROPOUT) {
+        LOG(INFO) << "Found nested dropout params";
 
         shared_ptr<Blob<Dtype> > layer_params = net_params[param_id];
         int filter_size = layer_params->count() / layer_params->num();
@@ -873,7 +874,7 @@ void NestedDropoutSolver<Dtype>::ComputeUpdateValue() {
       // net_params_lr is a multiplier on the learning rate for this parameter.
       Dtype local_rate = rate * net_params_lr[param_id];
 
-      if (net_params_weight_decay[param_id] || weight_decay) {
+      if (net_params_weight_decay[param_id] && weight_decay) {
         if (regularization_type == "L2") {
           // add weight decay
           // param_diff = param_diff + local_decay .* param_data
