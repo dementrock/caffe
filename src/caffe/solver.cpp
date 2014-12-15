@@ -801,7 +801,7 @@ void NestedDropoutSolver<Dtype>::ComputeUpdateValue() {
   vector<float>& net_params_lr = this->net_->params_lr();
   vector<float>& net_params_weight_decay = this->net_->params_weight_decay();
   // Get layer names so we can figure out which layer the param belongs to.
-  const vector<string>& layer_names = this->net_->layer_names();
+	const vector<shared_ptr<Layer<Dtype> > >& layers = this->net_->layers();
   const vector<pair<int, int> > param_to_layer = this->net_->param_layer_indices();
 
   // get the learning rate
@@ -812,50 +812,79 @@ void NestedDropoutSolver<Dtype>::ComputeUpdateValue() {
   Dtype momentum = this->param_.momentum();
   Dtype weight_decay = this->param_.weight_decay();
   string regularization_type = this->param_.regularization_type();
+	Dtype gradient_ratio = this->param_.gradient_ratio();
+
+	// Compute regularization coefficients for nested dropout layer.
+	// Assumes that there is oniy one nested dropout layer.
+	vector<float>& reg_coeff;
+
   switch (Caffe::mode()) {
   case Caffe::CPU:
     for (int param_id = 0; param_id < net_params.size(); ++param_id) {
 
       // On the nested dropout layer, we want to fix the ratio between the
-      // gradient (net_params[param_id]->cpu_diff()) and decay coeff (weight_decay)
-      // Something like weight_decay = ratio / net_params[param_id].cpu_diff())
+      // gradient and decay.
 
       // Need to figure out which layer this parameter belongs to. (Or separately
       // iterate over parameters in nested dropout layer)
       // protected param_layer_indices_ is a list of pairs (layer id, param id)
       // To get owner layer: net_->layer_names_[net_->param_layer_indices_[param_id].first]
 
-      Dtype local_decay;
-      string param_layer_name = layer_names[param_to_layer[param_id].first];
-      if (this->net_->layer_by_name(param_layer_name)->type() ==
+      vector<Dtype> local_decay(net_params[param_id]->count());
+      if (layers[param_to_layer[param_id].first]->type() ==
         LayerParameter_LayerType_NESTED_DROPOUT) {
-        // TODO: Define local decay here, based on the correct ratio and param diff.
-        local_decay = reg_ratio * net_params_weight_decay[param_id] / net_params[param_id].cpu_diff();
+
+				shared_ptr<Blob<Dtype> > layer_params = net_params[param_id];
+				int filter_size = layer_params->count() / layer_params->num();
+
+				// Compute magnitude of regularizaiton gradient and error gradient w.r.t. parameters
+				// for each filter.
+				for (int filter_ind = 0; filter_ind < layer_params->num(); ++filter_ind) {
+					int filter_offset = layer_params->offset(filter_ind);
+					Dtype reg_mag;
+        	if (regularization_type == "L1") {
+						reg_mag = filter_size;
+          } else if (regularization_type == "L2") {
+					  reg_mag = sqrt(cafe_cpu_dot(filter_size, layer_params->cpu_data()+filter_offset,
+									                            layer_params->cpu_data()+filter_offset));
+					}
+					Dtype grad_mag = sqrt(cafe_cpu_dot(filter_size, layer_params->cpu_diff()+filter_offset,
+							layer_params->cpu_diff() + filter_offset));
+					caffe_set(filter_size, net_params_weight_decay[param_id] * gradient_ratio * grad_mag / reg_mag, local_decay.data()+filter_offset);
+				}
         LOG(INFO) << "in nested dropout layer";
       } else {
-        local_decay = weight_decay * net_params_weight_decay[param_id];
+        caffe_set(net_params[param_id]->count(),
+						      weight_decay * net_params_weight_decay[param_id],
+									local_decay.data());
       }
 
       // Compute the value to history, and then copy them to the blob's diff.
       // net_params_lr is a multiplier on the learning rate for this parameter.
       Dtype local_rate = rate * net_params_lr[param_id];
 
-      if (local_decay) {
+      if (net_params_weight_decay[param_id] || weight_decay) {
         if (regularization_type == "L2") {
           // add weight decay
-          // param_diff = param_diff + local_decay * param_data
-          caffe_axpy(net_params[param_id]->count(),
-              local_decay,
+          // param_diff = param_diff + local_decay .* param_data
+          caffe_axpby(net_params[param_id]->count(), 1.,
               net_params[param_id]->cpu_data(),
+              local_decay.data());
+          caffe_axpy(net_params[param_id]->count(),
+              1.,
+              local_decay.data(),
               net_params[param_id]->mutable_cpu_diff());
         } else if (regularization_type == "L1") {
-          // param_diff = sign(net_param) * local_decay + param_diff
+          // param_diff = sign(net_param) .* local_decay + param_diff
           caffe_cpu_sign(net_params[param_id]->count(),
               net_params[param_id]->cpu_data(),
               this->temp_[param_id]->mutable_cpu_data());
+          caffe_axpby(net_params[param_id]->count(), 1.,
+							this->temp_[param_id]->cpu_data(),
+							local_decay.data());
           caffe_axpy(net_params[param_id]->count(),
-              local_decay,
-              this->temp_[param_id]->cpu_data(),
+              1.,
+              local_decay.data(),
               net_params[param_id]->mutable_cpu_diff());
         } else {
           LOG(FATAL) << "Unknown regularization type: " << regularization_type;
