@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <memory>
+#include <iostream>
 
 #include "caffe/net.hpp"
 #include "caffe/proto/caffe.pb.h"
@@ -10,6 +12,7 @@
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/upgrade_proto.hpp"
+#include "caffe/neuron_layers.hpp"
 
 namespace caffe {
 
@@ -193,6 +196,20 @@ void Solver<Dtype>::Solve(const char* resume_file) {
       TestAll();
     }
 
+    // Get nd layer
+    if (iter_ % 3000 == 0 && iter_ != 0) {
+        const vector<shared_ptr<Layer<Dtype> > >& layers = this->net_->layers();
+        shared_ptr<NestedDropoutLayer<Dtype> > nd_layer;
+        for (int i = 0; i < layers.size(); ++i) {
+          if (layers[i]->type() == LayerParameter_LayerType_NESTED_DROPOUT) {
+            nd_layer = boost::static_pointer_cast<NestedDropoutLayer<Dtype> >(layers[i]);
+          }
+        }
+        // Update nested dropout unit_num_ if we're at a certain iter.
+        ++nd_layer->unit_num_;
+    }
+
+
     const bool display = param_.display() && iter_ % param_.display() == 0;
     net_->set_debug_info(display && param_.debug_info());
     Dtype loss = net_->ForwardBackward(bottom_vec);
@@ -229,6 +246,26 @@ void Solver<Dtype>::Solve(const char* resume_file) {
     }
 
     ComputeUpdateValue();
+
+    // Manually set appropriate diffs to 0 for nested dropout layer (conv1 filter)
+    vector<shared_ptr<Blob<Dtype> > >& net_params = this->net_->params();
+    const vector<pair<int, int> > param_to_layer = this->net_->param_layer_indices();
+    shared_ptr<Blob<Dtype> > nd_params = net_params[0];
+    int filter_size = 5*5*3;
+    int unit_num = iter_/3000;
+    switch (Caffe::mode()) {
+      case Caffe::CPU:
+        caffe_scal(filter_size*unit_num, Dtype(0), nd_params->mutable_cpu_diff());
+        break;
+      case Caffe::GPU:
+#ifndef CPU_ONLY
+        caffe_gpu_scal(filter_size*unit_num, Dtype(0), nd_params->mutable_gpu_diff());
+#else
+    NO_GPU;
+#endif
+        break;
+    }
+
     net_->Update();
   }
   // Always save a snapshot after optimization, unless overridden by setting
@@ -457,9 +494,19 @@ void SGDSolver<Dtype>::ComputeUpdateValue() {
       if (local_decay) {
         if (regularization_type == "L2") {
           // add weight decay
+          // get the sign of the diff (0 if no update), muliply with reg data,
+          // add to cpu_diff
+          caffe_cpu_sign(net_params[param_id]->count(),
+              net_params[param_id]->cpu_diff(),
+              this->temp_[param_id]->mutable_cpu_data());
+          caffe_cpu_axpby(net_params[param_id]->count(),
+              Dtype(1),
+              net_params[param_id]->cpu_data(),
+              Dtype(1),
+              this->temp_[param_id]->mutable_cpu_data());
           caffe_axpy(net_params[param_id]->count(),
               local_decay,
-              net_params[param_id]->cpu_data(),
+              this->temp_[param_id]->cpu_data(),
               net_params[param_id]->mutable_cpu_diff());
         } else if (regularization_type == "L1") {
           caffe_cpu_sign(net_params[param_id]->count(),
@@ -493,6 +540,21 @@ void SGDSolver<Dtype>::ComputeUpdateValue() {
       if (local_decay) {
         if (regularization_type == "L2") {
           // add weight decay
+          // get the sign of the diff (0 if no update), muliply with reg data,
+          // add to gpu_diff
+          //caffe_gpu_sign(net_params[param_id]->count(),
+              //net_params[param_id]->gpu_diff(),
+              //this->temp_[param_id]->mutable_gpu_data());
+          //caffe_gpu_axpby(net_params[param_id]->count(),
+              //Dtype(1),
+              //net_params[param_id]->gpu_data(),
+              //Dtype(1),
+              //this->temp_[param_id]->mutable_gpu_data());
+          //caffe_gpu_axpy(net_params[param_id]->count(),
+              //local_decay,
+              //this->temp_[param_id]->gpu_data(),
+              //net_params[param_id]->mutable_gpu_diff());
+
           caffe_gpu_axpy(net_params[param_id]->count(),
               local_decay,
               net_params[param_id]->gpu_data(),
