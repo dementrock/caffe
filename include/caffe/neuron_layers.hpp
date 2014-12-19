@@ -292,6 +292,8 @@ class ExpLayer : public NeuronLayer<Dtype> {
 template <typename Dtype>
 class NestedDropoutLayer : public NeuronLayer<Dtype> {
  public:
+  int unit_num_;
+  int test_ind_;
   /**
    * @param param provides NestedDropoutParameter nested_dropout_param,
    *     with NestedDropoutLayer options:
@@ -338,11 +340,15 @@ class NestedDropoutLayer : public NeuronLayer<Dtype> {
   /// the scale for undropped inputs at train time @f$ dim * p @f$
   Dtype scale_;
   /// the current index of the first non-converged unit (starts at 0)
-  int unit_num_;
+  // int unit_num_;
   /// whether or not to do unit sweeping by increasing unit_num_
   bool unit_sweep_;
   /// Absolute threshold for convergence.
   Dtype converge_thresh_;
+  /// Number of channels to keep at test time.
+  //int test_ind_;
+  /// Drop channels randomly or nested at test time.
+  bool test_drop_random_;
 };
 
 /**

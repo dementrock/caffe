@@ -27,6 +27,9 @@ void NestedDropoutLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   // converge_thresh_ = 1e-5;
   converge_thresh_ = this->layer_param_.nested_dropout_param().converge_threshold();
   unit_sweep_ = this->layer_param_.nested_dropout_param().unit_sweep();
+  test_ind_ = bottom[0]->channels() - this->layer_param_.nested_dropout_param().test_drop();
+  //scale_ = 32.0 / (test_ind_);
+  test_drop_random_ = this->layer_param_.nested_dropout_param().test_drop_random();
 }
 
 template <typename Dtype>
@@ -79,10 +82,25 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
           current_channel[k] = Dtype(0);
         }
       }
-
     }
-  } else {
-    caffe_copy(bottom[0]->count(), bottom_data, top_data);
+  } else {  // TEST Phase
+    for (int i = 0; i < num; ++i) {
+      for (int j = 0; j < test_ind_; ++j) {
+        Dtype* current_channel = top_data + top[0]->offset(i, j);
+        const Dtype* current_bottom_channel = bottom_data + bottom[0]->offset(i, j);
+        for (int k = 0; k < num_pix; ++k) {
+          current_channel[k] = current_bottom_channel[k] * scale_;
+        }
+      }
+      // Next set the rest of the channels to 0.
+      for (int j = test_ind_; j < num_channels; ++j) {
+        Dtype* current_channel = top_data + top[0]->offset(i, j);
+        for (int k = 0; k < num_pix; ++k) {
+          current_channel[k] = Dtype(0);
+        }
+      }
+    }
+    // caffe_copy(bottom[0]->count(), bottom_data, top_data);
   }
 }
 
@@ -128,9 +146,15 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       // If any of the gradients/diffs is larger than thresh, then we haven't
       // converged.
       bool converged = true;
+      Dtype mean_diff = Dtype(0);
       for (int i = 0; i < num; ++i) {
         const Dtype* top_unit_i = top_diff + top[0]->offset(i, unit_num_);
+        for (int j = 0; j < num_pix; ++j) {
+          mean_diff += *(top_unit_i + j);
+        }
+        // LOG(INFO) << caffe_cpu_asum(num_pix, top_unit_i) << ", ";
         if (caffe_cpu_asum(num_pix, top_unit_i) > converge_thresh_ * num_pix) {
+          //std::cout << caffe_cpu_asum(num_pix, top_unit_i) << ", ";
           // std::cout << "\nDid not converge, diff value:" << caffe_cpu_asum(num_pix, top_unit_i) << "\n";
           converged = false;
           break;
@@ -139,11 +163,12 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
           // std::cout << "diff: " << caffe_cpu_asum(num_pix, top_unit_i) << ", ";
         }
       }
-      if (converged && unit_sweep_) {
-        std::cout << "Unit " << unit_num_ << " converged. :)\n";
+      // LOG(INFO) << "Mean diff: "<< mean_diff;
+      if (fabs(mean_diff) < converge_thresh_ && unit_sweep_) {
+        LOG(INFO) << "Unit " << unit_num_ << " converged. :)\n";
         // Only increase if we have more channels that haven't converged.
         if (unit_num_ < bottom[0]->channels() - 1) {
-          unit_num_++;
+          //unit_num_++;
         }
       }
 
