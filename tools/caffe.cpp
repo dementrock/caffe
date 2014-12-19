@@ -1,11 +1,16 @@
 #include <glog/logging.h>
 
+#include <algorithm>
 #include <cstring>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "caffe/caffe.hpp"
+#include "caffe/neuron_layers.hpp"
+#include "caffe/util/math_functions.hpp"
+#include "caffe/proto/caffe.pb.h"
 
 using caffe::Blob;
 using caffe::Caffe;
@@ -191,6 +196,91 @@ int test() {
 RegisterBrewFunction(test);
 
 
+// NDTest: score a model for different values of test_drop.
+int ndtest() {
+  CHECK_GT(FLAGS_model.size(), 0) << "Need a model definition to score.";
+  CHECK_GT(FLAGS_weights.size(), 0) << "Need model weights to score.";
+
+  // Set device id and mode
+  if (FLAGS_gpu >= 0) {
+    LOG(INFO) << "Use GPU with device ID " << FLAGS_gpu;
+    Caffe::SetDevice(FLAGS_gpu);
+    Caffe::set_mode(Caffe::GPU);
+  } else {
+    LOG(INFO) << "Use CPU.";
+    Caffe::set_mode(Caffe::CPU);
+  }
+  // Instantiate the caffe net.
+  Caffe::set_phase(Caffe::TEST);
+  Net<float> caffe_net(FLAGS_model);
+  //LOG(INFO) << "Nested Dropout Layer: " << caffe_net.layers()[3]->type();
+  shared_ptr<caffe::NestedDropoutLayer<float> > nd_layer = boost::static_pointer_cast<caffe::NestedDropoutLayer<float> >(caffe_net.layers()[3]);
+  nd_layer->test_ind_ = 0;
+  caffe_net.CopyTrainedLayersFrom(FLAGS_weights);
+  LOG(INFO) << "Running for " << FLAGS_iterations << " iterations.";
+
+  vector<float> accuracies;
+  for (; nd_layer->test_ind_ < 33; ++nd_layer->test_ind_) {
+    LOG(INFO) << "Test ind: " << nd_layer->test_ind_;
+    vector<Blob<float>* > bottom_vec;
+    vector<int> test_score_output_id;
+    vector<float> test_score;
+    float loss = 0;
+    for (int i = 0; i < FLAGS_iterations; ++i) {
+      float iter_loss;
+      const vector<Blob<float>*>& result =
+          caffe_net.Forward(bottom_vec, &iter_loss);
+      loss += iter_loss;
+      int idx = 0;
+      for (int j = 0; j < result.size(); ++j) {
+        const float* result_vec = result[j]->cpu_data();
+        for (int k = 0; k < result[j]->count(); ++k, ++idx) {
+          const float score = result_vec[k];
+          if (i == 0) {
+            test_score.push_back(score);
+            test_score_output_id.push_back(j);
+          } else {
+            test_score[idx] += score;
+          }
+          const std::string& output_name = caffe_net.blob_names()[
+              caffe_net.output_blob_indices()[j]];
+          //LOG(INFO) << "Batch " << i << ", " << output_name << " = " << score;
+        }
+      }
+    }
+    loss /= FLAGS_iterations;
+    LOG(INFO) << "Loss: " << loss;
+    for (int i = 0; i < test_score.size(); ++i) {
+      const std::string& output_name = caffe_net.blob_names()[
+          caffe_net.output_blob_indices()[test_score_output_id[i]]];
+      const float loss_weight =
+          caffe_net.blob_loss_weights()[caffe_net.output_blob_indices()[i]];
+      std::ostringstream loss_msg_stream;
+      const float mean_score = test_score[i] / FLAGS_iterations;
+      if (loss_weight) {
+        loss_msg_stream << " (* " << loss_weight
+                        << " = " << loss_weight * mean_score << " loss)";
+      }
+      LOG(INFO) << output_name << " = " << mean_score << loss_msg_stream.str();
+      if (i==0) accuracies.push_back(mean_score);
+    }
+  }
+  std::string file_name("accuracies.h5");
+  std::string dataset("accuracies");
+  hsize_t dims[1];
+  dims[0] = 33;
+  int file_id_ = H5Fcreate(file_name.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
+                       H5P_DEFAULT);
+  H5LTmake_dataset_float(
+      file_id_, dataset.c_str(), 1, dims, accuracies.data());
+
+  return 0;
+}
+RegisterBrewFunction(ndtest);
+
+
+
+
 // Time: benchmark the execution time of a model.
 int time() {
   CHECK_GT(FLAGS_model.size(), 0) << "Need a model definition to time.";
@@ -291,6 +381,7 @@ int main(int argc, char** argv) {
       "commands:\n"
       "  train           train or finetune a model\n"
       "  test            score a model\n"
+      "  ndtest          test a nested dropout model\n"
       "  device_query    show GPU diagnostic information\n"
       "  time            benchmark model execution time");
   // Run tool or show usage.
