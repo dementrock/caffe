@@ -248,23 +248,23 @@ void Solver<Dtype>::Solve(const char* resume_file) {
     ComputeUpdateValue();
 
     // Manually set appropriate diffs to 0 for nested dropout layer (conv1 filter)
-    vector<shared_ptr<Blob<Dtype> > >& net_params = this->net_->params();
-    const vector<pair<int, int> > param_to_layer = this->net_->param_layer_indices();
-    shared_ptr<Blob<Dtype> > nd_params = net_params[0];
-    int filter_size = 5*5*3;
-    int unit_num = iter_/3000;
-    switch (Caffe::mode()) {
-      case Caffe::CPU:
-        caffe_scal(filter_size*unit_num, Dtype(0), nd_params->mutable_cpu_diff());
-        break;
-      case Caffe::GPU:
-#ifndef CPU_ONLY
-        caffe_gpu_scal(filter_size*unit_num, Dtype(0), nd_params->mutable_gpu_diff());
-#else
-    NO_GPU;
-#endif
-        break;
-    }
+    //vector<shared_ptr<Blob<Dtype> > >& net_params = this->net_->params();
+    //const vector<pair<int, int> > param_to_layer = this->net_->param_layer_indices();
+    //shared_ptr<Blob<Dtype> > nd_params = net_params[0];
+    //int filter_size = 5*5*3;
+    //int unit_num = iter_/3000;
+    //switch (Caffe::mode()) {
+      //case Caffe::CPU:
+        //caffe_scal(filter_size*unit_num, Dtype(0), nd_params->mutable_cpu_diff());
+        //break;
+      //case Caffe::GPU:
+//#ifndef CPU_ONLY
+        //caffe_gpu_scal(filter_size*unit_num, Dtype(0), nd_params->mutable_gpu_diff());
+//#else
+    //NO_GPU;
+//#endif
+        //break;
+    //}
 
     net_->Update();
   }
