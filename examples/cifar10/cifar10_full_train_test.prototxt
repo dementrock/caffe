@@ -34,6 +34,8 @@ layers {
   top: "conv1"
   blobs_lr: 1
   blobs_lr: 2
+  weight_decay: 0
+  weight_decay: 0
   convolution_param {
     num_output: 32
     pad: 2
@@ -49,9 +51,21 @@ layers {
   }
 }
 layers {
+  name: "nd"
+  type: NESTED_DROPOUT
+  nested_dropout_param {
+    converge_threshold: 0.00000001
+    unit_sweep: true
+    geom_rate: 0.9
+    test_drop: 0
+  }
+  bottom: "conv1"
+  top: "nd"
+}
+layers {
   name: "pool1"
   type: POOLING
-  bottom: "conv1"
+  bottom: "nd"
   top: "pool1"
   pooling_param {
     pool: MAX
