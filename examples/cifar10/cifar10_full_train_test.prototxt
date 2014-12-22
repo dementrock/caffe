@@ -57,7 +57,7 @@ layers {
     converge_threshold: 0.00000001
     unit_sweep: true
     geom_rate: 0.9
-    test_drop: 0
+    test_drop_random: false
   }
   bottom: "conv1"
   top: "nd"
