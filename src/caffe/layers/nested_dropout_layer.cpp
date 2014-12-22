@@ -28,6 +28,10 @@ void NestedDropoutLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   converge_thresh_ = this->layer_param_.nested_dropout_param().converge_threshold();
   unit_sweep_ = this->layer_param_.nested_dropout_param().unit_sweep();
   test_ind_ = bottom[0]->channels() - this->layer_param_.nested_dropout_param().test_drop();
+  test_drop_inds_.clear();
+  std::copy(this->layer_param_.nested_dropout_param().test_drop_inds().begin(),
+      this->layer_param_.nested_dropout_param().test_drop_inds().end(),
+      std::back_inserter(test_drop_inds_));
   //scale_ = 32.0 / (test_ind_);
   test_drop_random_ = this->layer_param_.nested_dropout_param().test_drop_random();
 }
@@ -85,18 +89,34 @@ void NestedDropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     }
   } else {  // TEST Phase
     for (int i = 0; i < num; ++i) {
-      for (int j = 0; j < test_ind_; ++j) {
-        Dtype* current_channel = top_data + top[0]->offset(i, j);
-        const Dtype* current_bottom_channel = bottom_data + bottom[0]->offset(i, j);
-        for (int k = 0; k < num_pix; ++k) {
-          current_channel[k] = current_bottom_channel[k] * scale_;
+      if (!test_drop_random_) {
+        for (int j = 0; j < num_channels; ++j) {
+          Dtype* current_channel = top_data + top[0]->offset(i, j);
+          if (std::find(test_drop_inds_.begin(),test_drop_inds_.end(),j) != test_drop_inds_.end()) {
+            for (int k = 0; k < num_pix; ++k) {
+              current_channel[k] = Dtype(0);
+            }
+          } else {
+            const Dtype* current_bottom_channel = bottom_data + bottom[0]->offset(i, j);
+            for (int k = 0; k < num_pix; ++k) {
+              current_channel[k] = current_bottom_channel[k] * scale_;
+            }
+          }
         }
-      }
-      // Next set the rest of the channels to 0.
-      for (int j = test_ind_; j < num_channels; ++j) {
-        Dtype* current_channel = top_data + top[0]->offset(i, j);
-        for (int k = 0; k < num_pix; ++k) {
-          current_channel[k] = Dtype(0);
+      } else {
+        for (int j = 0; j < test_ind_; ++j) {
+          Dtype* current_channel = top_data + top[0]->offset(i, j);
+          const Dtype* current_bottom_channel = bottom_data + bottom[0]->offset(i, j);
+          for (int k = 0; k < num_pix; ++k) {
+            current_channel[k] = current_bottom_channel[k] * scale_;
+          }
+        }
+        // Next set the rest of the channels to 0.
+        for (int j = test_ind_; j < num_channels; ++j) {
+          Dtype* current_channel = top_data + top[0]->offset(i, j);
+          for (int k = 0; k < num_pix; ++k) {
+            current_channel[k] = Dtype(0);
+          }
         }
       }
     }

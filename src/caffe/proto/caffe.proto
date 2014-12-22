@@ -633,7 +633,8 @@ message NestedDropoutParameter {
   optional float converge_threshold = 2 [default = 0.000001]; // the threshold for unit convergence.
   optional bool unit_sweep = 3 [default = true]; // whether or not to do unit sweeping
   optional int32 test_drop = 4 [default = 0]; // number of units to drop at test time
-  optional bool test_drop_random = 5 [default = false]; // drop units randomly or nested at test time
+  optional bool test_drop_random = 5 [default = true]; // drop units randomly or nested at test time
+  repeated int32 test_drop_inds = 6;
 }
 
 // Message that stores parameters used by PowerLayer

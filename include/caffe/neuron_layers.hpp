@@ -294,6 +294,7 @@ class NestedDropoutLayer : public NeuronLayer<Dtype> {
  public:
   int unit_num_;
   int test_ind_;
+  vector<int> test_drop_inds_;
   /**
    * @param param provides NestedDropoutParameter nested_dropout_param,
    *     with NestedDropoutLayer options:
