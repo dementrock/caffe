@@ -195,6 +195,123 @@ int test() {
 }
 RegisterBrewFunction(test);
 
+// NDTestBaseline: score a model for different values of test_drop.
+int ndtestbaseline() {
+  CHECK_GT(FLAGS_model.size(), 0) << "Need a model definition to score.";
+  CHECK_GT(FLAGS_weights.size(), 0) << "Need model weights to score.";
+
+  // Set device id and mode
+  if (FLAGS_gpu >= 0) {
+    LOG(INFO) << "Use GPU with device ID " << FLAGS_gpu;
+    Caffe::SetDevice(FLAGS_gpu);
+    Caffe::set_mode(Caffe::GPU);
+  } else {
+    LOG(INFO) << "Use CPU.";
+    Caffe::set_mode(Caffe::CPU);
+  }
+  // Instantiate the caffe net.
+  Caffe::set_phase(Caffe::TEST);
+  Net<float> caffe_net(FLAGS_model);
+  //LOG(INFO) << "Nested Dropout Layer: " << caffe_net.layers()[3]->type();
+  shared_ptr<caffe::NestedDropoutLayer<float> > nd_layer = boost::static_pointer_cast<caffe::NestedDropoutLayer<float> >(caffe_net.layers()[3]);
+  //nd_layer->test_drop_inds_.push_back(5);
+  //nd_layer->test_drop_inds_.push_back(32);
+  //nd_layer->test_drop_inds_.push_back(6);
+  //nd_layer->test_drop_inds_.push_back(2);
+  //nd_layer->test_drop_inds_.push_back(12);
+  //nd_layer->test_drop_inds_.push_back(28);
+  //nd_layer->test_drop_inds_.push_back(16);
+  //nd_layer->test_drop_inds_.push_back(3);
+  //nd_layer->test_drop_inds_.push_back(26);
+  //int num_drop = 10;
+  caffe_net.CopyTrainedLayersFrom(FLAGS_weights);
+  LOG(INFO) << "Running for " << FLAGS_iterations << " iterations.";
+
+  vector<float> accuracies;
+
+  for (int num_drop = 1; num_drop < 33; ++num_drop) {
+    // make room for another index
+    nd_layer->test_drop_inds_.push_back(-1);
+
+    float max_acc = -1;
+    int max_ind = -1;
+    nd_layer->test_drop_inds_.push_back(-1);
+    for (int drop_ind = 0; drop_ind < 33; ++drop_ind) {
+      // skip if we're already dropping out this index
+      if (std::find(nd_layer->test_drop_inds_.begin(),
+                    nd_layer->test_drop_inds_.end(),
+                    drop_ind) != nd_layer->test_drop_inds_.end()) continue;
+
+      nd_layer->test_drop_inds_[num_drop-1] = drop_ind;
+      LOG(INFO) << "Test ind: " << drop_ind;
+      vector<Blob<float>* > bottom_vec;
+      vector<int> test_score_output_id;
+      vector<float> test_score;
+      float loss = 0;
+      for (int i = 0; i < FLAGS_iterations; ++i) {
+        float iter_loss;
+        const vector<Blob<float>*>& result =
+            caffe_net.Forward(bottom_vec, &iter_loss);
+        loss += iter_loss;
+        int idx = 0;
+        for (int j = 0; j < result.size(); ++j) {
+          const float* result_vec = result[j]->cpu_data();
+          for (int k = 0; k < result[j]->count(); ++k, ++idx) {
+            const float score = result_vec[k];
+            if (i == 0) {
+              test_score.push_back(score);
+              test_score_output_id.push_back(j);
+            } else {
+              test_score[idx] += score;
+            }
+            const std::string& output_name = caffe_net.blob_names()[
+                caffe_net.output_blob_indices()[j]];
+            //LOG(INFO) << "Batch " << i << ", " << output_name << " = " << score;
+          }
+        }
+      }
+      loss /= FLAGS_iterations;
+      //LOG(INFO) << "Loss: " << loss;
+      for (int i = 0; i < test_score.size(); ++i) {
+        const std::string& output_name = caffe_net.blob_names()[
+            caffe_net.output_blob_indices()[test_score_output_id[i]]];
+        const float loss_weight =
+            caffe_net.blob_loss_weights()[caffe_net.output_blob_indices()[i]];
+        std::ostringstream loss_msg_stream;
+        const float mean_score = test_score[i] / FLAGS_iterations;
+        if (loss_weight) {
+          loss_msg_stream << " (* " << loss_weight
+                          << " = " << loss_weight * mean_score << " loss)";
+        }
+        // LOG(INFO) << output_name << " = " << mean_score << loss_msg_stream.str();
+        if (i==0) {
+          //accuracies.push_back(mean_score);
+          if (mean_score > max_acc) {
+            max_acc = mean_score;
+            max_ind = drop_ind;
+          }
+        }
+      }
+    }
+    LOG(INFO) << "Max accuracy: " << max_acc;
+    LOG(INFO) << "Max index: " << max_ind;
+    nd_layer->test_drop_inds_[num_drop-1] = max_ind;
+    accuracies.push_back(max_acc);
+  }
+  std::string file_name("accuracies.h5");
+  std::string dataset("accuracies");
+  hsize_t dims[1];
+  dims[0] = 33;
+  int file_id_ = H5Fcreate(file_name.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
+                       H5P_DEFAULT);
+  H5LTmake_dataset_float(
+      file_id_, dataset.c_str(), 1, dims, accuracies.data());
+
+  return 0;
+}
+RegisterBrewFunction(ndtestbaseline);
+
+
 
 // NDTest: score a model for different values of test_drop.
 int ndtest() {
@@ -249,7 +366,7 @@ int ndtest() {
       }
     }
     loss /= FLAGS_iterations;
-    LOG(INFO) << "Loss: " << loss;
+    //LOG(INFO) << "Loss: " << loss;
     for (int i = 0; i < test_score.size(); ++i) {
       const std::string& output_name = caffe_net.blob_names()[
           caffe_net.output_blob_indices()[test_score_output_id[i]]];
@@ -382,6 +499,7 @@ int main(int argc, char** argv) {
       "  train           train or finetune a model\n"
       "  test            score a model\n"
       "  ndtest          test a nested dropout model\n"
+      "  ndtestbaseline          test a nested dropout model\n"
       "  device_query    show GPU diagnostic information\n"
       "  time            benchmark model execution time");
   // Run tool or show usage.
