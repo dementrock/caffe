@@ -24,6 +24,7 @@ max_iter: 90000
 # max_iter: 1000
 # snapshot intermediate results
 snapshot: 3000
-snapshot_prefix: "examples/cifar10/snapshot/cifar10_ndforcefull_noreg"
+snapshot_prefix: "examples/cifar10/snapshot/cifar10_nd_testing"
+# snapshot_prefix: "examples/cifar10/snapshot/cifar10_ndforcefull_noreg"
 # solver mode: CPU or GPU
 solver_mode: GPU
