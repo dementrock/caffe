@@ -181,9 +181,32 @@ void Solver<Dtype>::Solve(const char* resume_file) {
   vector<Dtype> losses;
   Dtype smoothed_loss = 0;
 
+  shared_ptr<NestedDropoutLayer<Dtype> > nd_layer;
+  boost::shared_ptr<Blob<Dtype> > conv_nd_filters;
+  const vector<shared_ptr<Layer<Dtype> > >& layers = this->net_->layers();
+  for (int i = 0; i < layers.size(); ++i) {
+    if (layers[i]->type() == LayerParameter_LayerType_NESTED_DROPOUT) {
+      nd_layer = boost::static_pointer_cast<NestedDropoutLayer<Dtype> >(layers[i]);
+      conv_nd_filters = layers[i-1]->blobs()[0];
+      break;
+    }
+  }
+
+  int nd_history_length = 250;
+  int nd_filter_dim = conv_nd_filters->count() / conv_nd_filters->num();
+  shared_ptr<Blob<Dtype> > conv_nd_history = shared_ptr<Blob<Dtype> >(
+      new Blob<Dtype>(nd_history_length, conv_nd_filters->channels(),
+                      conv_nd_filters->height(), conv_nd_filters->width()));
+  shared_ptr<Blob<Dtype> > conv_nd_temp = shared_ptr<Blob<Dtype> >(
+      new Blob<Dtype>(nd_history_length-1, conv_nd_filters->channels(),
+                      conv_nd_filters->height(), conv_nd_filters->width()));
+
+
+
   // For a network that is trained by the solver, no bottom or top vecs
   // should be given, and we will just provide dummy vecs.
   vector<Blob<Dtype>*> bottom_vec;
+  int filter_iter = 0;
   for (; iter_ < param_.max_iter(); ++iter_) {
     // Save a snapshot if needed.
     if (param_.snapshot() && iter_ > start_iter &&
@@ -196,19 +219,10 @@ void Solver<Dtype>::Solve(const char* resume_file) {
       TestAll();
     }
 
-    // Get nd layer
-    if (iter_ % 3000 == 0 && iter_ != 0) {
-        const vector<shared_ptr<Layer<Dtype> > >& layers = this->net_->layers();
-        shared_ptr<NestedDropoutLayer<Dtype> > nd_layer;
-        for (int i = 0; i < layers.size(); ++i) {
-          if (layers[i]->type() == LayerParameter_LayerType_NESTED_DROPOUT) {
-            nd_layer = boost::static_pointer_cast<NestedDropoutLayer<Dtype> >(layers[i]);
-          }
-        }
+    //if (iter_ % 3000 == 0 && iter_ != 0) {
         // Update nested dropout unit_num_ if we're at a certain iter.
-        ++nd_layer->unit_num_;
-    }
-
+    //    ++nd_layer->unit_num_;
+    //}
 
     const bool display = param_.display() && iter_ % param_.display() == 0;
     net_->set_debug_info(display && param_.debug_info());
@@ -246,6 +260,56 @@ void Solver<Dtype>::Solve(const char* resume_file) {
     }
 
     ComputeUpdateValue();
+
+    // Update conv history, move first 9 to last 9, and add onto the front
+    ++filter_iter;
+    switch (Caffe::mode()) {
+      case Caffe::CPU:
+        caffe_copy(nd_filter_dim * 9, conv_nd_history->cpu_data(),
+          conv_nd_temp->mutable_cpu_data());
+        // Only considering the first filter for now
+        caffe_copy(nd_filter_dim, conv_nd_filters->cpu_data() + conv_nd_filters->offset(nd_layer->unit_num_),
+            conv_nd_history->mutable_cpu_data());
+        caffe_copy(nd_filter_dim * 9, conv_nd_temp->cpu_data(),
+            conv_nd_history->mutable_cpu_data() + conv_nd_history->offset(1));
+        caffe_sub(nd_filter_dim, conv_nd_history->cpu_data(),
+            conv_nd_history->cpu_data() + conv_nd_history->offset(9),
+            conv_nd_temp->mutable_cpu_data());
+        LOG(INFO) << "Abs diff, cur and 10 iter ago: " << caffe_cpu_asum(nd_filter_dim,
+            conv_nd_temp->cpu_data());
+        break;
+      case Caffe::GPU:
+#ifndef CPU_ONLY
+        caffe_copy(nd_filter_dim * (nd_history_length-1), conv_nd_history->gpu_data(),
+          conv_nd_temp->mutable_gpu_data());
+        // Only considering the first filter for now
+        caffe_copy(nd_filter_dim, conv_nd_filters->gpu_data() + conv_nd_filters->offset(nd_layer->unit_num_),
+            conv_nd_history->mutable_gpu_data());
+        caffe_copy(nd_filter_dim * (nd_history_length-1), conv_nd_temp->gpu_data(),
+            conv_nd_history->mutable_gpu_data() + conv_nd_history->offset(1));
+        caffe_gpu_sub(nd_filter_dim, conv_nd_history->gpu_data(),
+            conv_nd_history->gpu_data() + conv_nd_history->offset(nd_history_length-1),
+            conv_nd_temp->mutable_gpu_data());
+        Dtype l1diff, l1val;
+        caffe_gpu_asum(nd_filter_dim, conv_nd_temp->gpu_data(), &l1diff);
+        caffe_gpu_asum(nd_filter_dim, conv_nd_filters->gpu_data(), &l1val);
+        if (iter_ % 10 == 0 && filter_iter > nd_history_length) {
+          // LOG(INFO) << "Abs diff, cur and "<< nd_history_length<<" iter ago: " << l1diff;
+          // LOG(INFO) << "\% Diff, cur and "<< nd_history_length<<" iter ago: " << l1diff/l1val;
+          LOG(INFO) <<"Unit num: "<< nd_layer->unit_num_ <<", Iter: "<< filter_iter <<", \% Diff: "<< l1diff/l1val;
+        }
+        if (filter_iter > nd_history_length && l1diff/l1val < 0.05) {
+          filter_iter = 0;
+          LOG(INFO) << "Increasing unit num to " << nd_layer->unit_num_+1;
+          ++nd_layer->unit_num_;
+        }
+#else
+        NO_GPU;
+#endif
+        break;
+      default:
+        LOG(FATAL) << "Unknown caffe mode: " << Caffe::mode();
+    }
 
     // Manually set appropriate diffs to 0 for nested dropout layer (conv1 filter)
     //vector<shared_ptr<Blob<Dtype> > >& net_params = this->net_->params();

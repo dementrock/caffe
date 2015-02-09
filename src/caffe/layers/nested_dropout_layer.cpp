@@ -165,9 +165,14 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       // First check for converge of the channel/unit with number unit_num_:
       // If any of the gradients/diffs is larger than thresh, then we haven't
       // converged.
+      // This doesn't work because we only have the gradient with respect to
+      // the data, not the gradeint with respect to the conv filter params,
+      // which is in the conv layer.
       bool converged = true;
       Dtype mean_diff = Dtype(0);
+
       for (int i = 0; i < num; ++i) {
+        // pointer to the ith
         const Dtype* top_unit_i = top_diff + top[0]->offset(i, unit_num_);
         for (int j = 0; j < num_pix; ++j) {
           mean_diff += *(top_unit_i + j);
