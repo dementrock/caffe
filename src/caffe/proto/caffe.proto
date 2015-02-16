@@ -59,6 +59,15 @@ message FillerParameter {
   // expected y coordinates, "xy" computes expected (x,y) coordinates, "-x^2y^2"
   // computes the expectation over (-x^2, -y^2), for computing variance)
   optional string expectation_option = 10 [default = "xy"];
+
+  // Normalize the filler variance by fan_in, fan_out, or their average.
+  // Applies to 'xavier' and 'msra' fillers.
+  enum VarianceNorm {
+    FAN_IN = 0;
+    FAN_OUT = 1;
+    AVERAGE = 2;
+  }
+  optional VarianceNorm variance_norm = 8 [default = FAN_IN];
 }
 
 message NetParameter {
