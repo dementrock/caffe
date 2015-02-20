@@ -13,6 +13,7 @@ void NestedDropoutLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   NeuronLayer<Dtype>::LayerSetUp(bottom, top);
   p_ = this->layer_param_.nested_dropout_param().geom_rate();
+  fix_after_sweep_ = this->layer_param_.nested_dropout_param().fix_after_sweep();
   DCHECK(p_ > 0.);
   // Maybe throw a warning if the parameter is equal to one. (Useless layer)
   DCHECK(p_ <= 1.);
@@ -138,15 +139,21 @@ void NestedDropoutLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 
     if (Caffe::phase() == Caffe::TRAIN) {
       const int* mask_unit_num = rand_vec_.cpu_data();
+      int first_nonzero;
+      if (fix_after_sweep_) {
+        first_nonzero = unit_num_;
+      } else {
+        first_nonzero = 0;
+      }
       for (int i = 0; i < num; ++i) {
         // Set diff to 0 for first unit_num_ gradients, scale the middle, the mask the rest
-				for (int j = 0; j < unit_num_; ++j) {
+        for (int j = 0; j < first_nonzero; ++j) {
           Dtype* current_channel = bottom_diff + bottom[0]->offset(i, j);
-					for (int k = 0; k < num_pix; ++k) {
+          for (int k = 0; k < num_pix; ++k) {
             current_channel[k] = Dtype(0);
           }
-				}
-        for (int j = unit_num_; j < mask_unit_num[i]; ++j) {
+        }
+        for (int j = first_nonzero; j < mask_unit_num[i]; ++j) {
           Dtype* current_channel = bottom_diff + bottom[0]->offset(i, j);
           const Dtype* current_top_channel =  top_diff + top[0]->offset(i, j);
           for (int k = 0; k < num_pix; ++k) {

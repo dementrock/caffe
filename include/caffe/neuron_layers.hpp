@@ -344,6 +344,8 @@ class NestedDropoutLayer : public NeuronLayer<Dtype> {
   // int unit_num_;
   /// whether or not to do unit sweeping by increasing unit_num_
   bool unit_sweep_;
+  /// whether or not to fix the filters after increasing the unit sweeping index.
+  bool fix_after_sweep_;
   /// Absolute threshold for convergence.
   Dtype converge_thresh_;
   /// Number of channels to keep at test time.
