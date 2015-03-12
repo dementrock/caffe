@@ -8,11 +8,11 @@ test_interval: 500
 base_lr: 0.001
 lr_policy: "step"
 gamma: 0.1
-stepsize: 10000
+stepsize: 12000
 display: 100
-max_iter: 12000
+max_iter: 15000
 momentum: 0.9
 weight_decay: 0.005
 snapshot: 500
-snapshot_prefix: "examples/vgps/snapshot/pose_pretrain_bottle_green_novariance"
+snapshot_prefix: "examples/vgps/snapshot/pose_pretrain_nopool_novariance_take3"
 solver_mode: GPU
