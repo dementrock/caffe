@@ -214,7 +214,7 @@ message NetStateRule {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available ID: 42 (last added: exp_param)
+// LayerParameter next available ID: 43 (last added: mask_output_param)
 message LayerParameter {
   repeated string bottom = 2; // the name of the bottom blobs
   repeated string top = 3; // the name of the top blobs
@@ -235,7 +235,7 @@ message LayerParameter {
   // line above the enum. Update the next available ID when you add a new
   // LayerType.
   //
-  // LayerType next available ID: 42 (last added: EUCLIDEAN_DISTANCE)
+  // LayerType next available ID: 44 (last added: MASK_OUTPUTS)
   enum LayerType {
     // "NONE" layer type is 0th enum element so that we don't cause confusion
     // by defaulting to an existent LayerType (instead, should usually error if
@@ -265,6 +265,7 @@ message LayerParameter {
     INFOGAIN_LOSS = 13;
     INNER_PRODUCT = 14;
     LRN = 15;
+    MASK_OUTPUTS = 43;
     MEMORY_DATA = 29;
     MULTINOMIAL_LOGISTIC_LOSS = 16;
     MVN = 34;
@@ -280,6 +281,7 @@ message LayerParameter {
     SLICE = 33;
     TANH = 23;
     WINDOW_DATA = 24;
+    WINDOW_POSE_DATA = 42;
     THRESHOLD = 31;
     WEIGHTED_EUCLIDEAN_LOSS = 39;
   }
@@ -327,6 +329,7 @@ message LayerParameter {
   optional InfogainLossParameter infogain_loss_param = 16;
   optional InnerProductParameter inner_product_param = 17;
   optional LRNParameter lrn_param = 18;
+  optional MaskOutputsParameter mask_outputs_param = 42;
   optional MemoryDataParameter memory_data_param = 22;
   optional MVNParameter mvn_param = 34;
   optional PoolingParameter pooling_param = 19;
@@ -583,6 +586,10 @@ message LRNParameter {
   }
   optional NormRegion norm_region = 4 [default = ACROSS_CHANNELS];
   optional float k = 5 [default = 1.];
+}
+
+message MaskOutputsParameter {
+  optional uint32 kernel_size = 1; // The kernel size
 }
 
 // Message that stores parameters used by MemoryDataLayer
