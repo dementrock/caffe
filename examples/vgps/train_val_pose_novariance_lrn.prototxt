@@ -106,7 +106,7 @@ layers {
   weight_decay: 0
   convolution_param {
     num_output: 32
-    kernel_size: 9
+    kernel_size: 5
     stride: 1
     weight_filler {
       type: "gaussian"
@@ -134,7 +134,7 @@ layers {
   weight_decay: 2
   weight_decay: 0
   convolution_param {
-    num_output: 64
+    num_output: 32
     kernel_size: 5
     stride: 1
     weight_filler {
@@ -174,10 +174,10 @@ layers {
   weight_decay: 0
   weight_decay: 0
   inner_product_param {
-    num_output: 128
+    num_output: 64
     weight_filler {
       type: "imagexy"
-      channels: 64
+      channels: 32
       width: 109
       height: 109
     }
