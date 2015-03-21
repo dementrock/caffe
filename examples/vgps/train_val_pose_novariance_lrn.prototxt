@@ -199,7 +199,7 @@ layers {
   weight_decay: 1
   weight_decay: 0
   inner_product_param {
-    num_output: 6
+    num_output: 9
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -227,17 +227,4 @@ layers {
   top: "euclidean_error"
   loss_weight: 1
 }
-
-#layers {
-#  name: "output_lrn"
-#  type: HDF5_OUTPUT
-#  hdf5_output_param {
-#    file_name: "examples/vgps/data/lrn_output_exposure.h5"
-#  }
-#  bottom: "lrn_frames"
-#  bottom: "rgb_frames"
-#  include: {
-#    phase: TEST
-#  }
-#}
 
