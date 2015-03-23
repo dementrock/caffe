@@ -1,0 +1,236 @@
+name: "JointAndImageStateRegressionNet"
+layers {
+  name: "data"
+  type: HDF5_DATA
+  top: "position"
+  top: "rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/train_pose.txt"
+    batch_size: 1
+  }
+  include: { phase: TRAIN }
+}
+layers {
+  name: "data"
+  type: HDF5_DATA
+  top: "position"
+  top: "rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/val_pose.txt"
+    batch_size: 1
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-val'
+  }
+}
+layers {
+  name: "data"
+  type: HDF5_DATA
+  top: "position"
+  top: "rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/train_pose.txt"
+    batch_size: 1
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-train'
+  }
+}
+
+# Image Processing Layers
+layers {
+  name: "conv1/7x7_s2"
+  type: CONVOLUTION
+  bottom: "rgb_frames"
+  top: "conv1"
+  blobs_lr: 1
+  blobs_lr: 2
+  weight_decay: 2
+  weight_decay: 0
+  convolution_param {
+    num_output: 64
+    kernel_size: 7
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layers {
+  name: "relu1"
+  type: RELU
+  bottom: "conv1"
+  top: "conv1"
+}
+layers {
+  name: "pool0"
+  type: POOLING
+  bottom: "conv1"
+  top: "pool1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
+  }
+}
+layers {
+  name: "conv2"
+  type: CONVOLUTION
+  bottom: "pool1"
+  top: "conv2"
+  blobs_lr: 1
+  blobs_lr: 2
+  weight_decay: 2
+  weight_decay: 0
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layers {
+  name: "relu2"
+  type: RELU
+  bottom: "conv2"
+  top: "conv2"
+}
+layers {
+  name: "pool1"
+  type: POOLING
+  bottom: "conv2"
+  top: "pool2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
+  }
+}
+layers {
+  name: "conv3"
+  type: CONVOLUTION
+  bottom: "pool2"
+  top: "conv3"
+  blobs_lr: 1
+  blobs_lr: 2
+  weight_decay: 2
+  weight_decay: 0
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+#layers {
+#  name: "pool2"
+#  type: POOLING
+#  bottom: "conv3"
+#  top: "pool3"
+#  pooling_param {
+#    pool: MAX
+#    kernel_size: 3
+#    stride: 2
+#  }
+#}
+layers {
+  name: "relu3"
+  type: RELU
+  bottom: "conv3"
+  top: "conv3"
+}
+layers {
+  name: "softmax"
+  type: SOFTMAX
+  bottom: "conv3"
+  top: "conv3"
+  softmax_param {
+    engine: CAFFE
+    temperature: 1.0
+    dimension: "spatial"
+  }
+}
+layers {
+  name: "fc_images"
+  type: INNER_PRODUCT
+  bottom: "conv3"
+  top: "expected_xy"
+  blobs_lr: 0
+  blobs_lr: 0
+  weight_decay: 0
+  weight_decay: 0
+  inner_product_param {
+    num_output: 64
+    weight_filler {
+      type: "imagexy"
+      channels: 32
+      width: 23
+      height: 23
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+
+layers {
+  name: "fc1_smaller"
+  type: INNER_PRODUCT
+  bottom: "expected_xy"
+  top: "image_features_smaller"
+  blobs_lr: 5
+  blobs_lr: 10
+  weight_decay: 1
+  weight_decay: 0
+  inner_product_param {
+    num_output: 9
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layers {
+  name: "euc_distance"
+  type: EUCLIDEAN_DISTANCE
+  bottom: "image_features_smaller"
+  bottom: "position"
+  top: "average_distance"
+  include: {phase: TEST}
+}
+
+layers {
+  name: "loss"
+  type: EUCLIDEAN_LOSS
+  bottom: "image_features_smaller"
+  bottom: "position"
+  top: "euclidean_error"
+  loss_weight: 1
+}
