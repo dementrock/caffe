@@ -1,0 +1,410 @@
+name: "JointAndImageStateRegressionNet"
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "position"
+  top: "rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/train_pose.txt"
+    batch_size: 25
+  }
+  include: { phase: TRAIN }
+}
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "position"
+  top: "rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/val_pose.txt"
+    batch_size: 10
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-val'
+  }
+}
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "position"
+  top: "rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/train_pose.txt"
+    batch_size: 10
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-train'
+  }
+}
+
+layer {
+  name: "lrn"
+  type: "LRN"
+  bottom: "rgb_frames"
+  top: "lrn_frames"
+  lrn_param {
+    norm_region: WITHIN_CHANNEL
+    alpha: 5e-05
+    beta: 0.75
+  }
+}
+
+# Image Processing Layers
+layer {
+  name: "conv1/7x7_s2"
+  type: "Convolution"
+  bottom: "lrn_frames"
+  top: "conv1"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 7
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "conv1"
+  top: "conv1"
+}
+
+
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "conv1"
+  top: "conv2"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "conv2"
+  top: "conv2"
+}
+layer {
+  name: "conv3"
+  type: "Convolution"
+  bottom: "conv2"
+  top: "conv3"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu3"
+  type: "ReLU"
+  bottom: "conv3"
+  top: "conv3"
+}
+layer {
+  name: "softmax"
+  type: "SpatialSoftmax"
+  bottom: "conv3"
+  top: "conv3"
+  spatial_softmax_param {
+    engine: CAFFE
+    temperature: 1.0
+    dimension: "spatial"
+  }
+}
+layer {
+  name: "expectation"
+  type: "InnerProduct"
+  bottom: "conv3"
+  top: "expected_xy"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 2  # dimensionality will actually be 2*num_channels
+    axis: -2
+    weight_filler {
+      type: "expectation"
+      expectation_option: "xy"
+      width: 109
+      height: 109
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "fc_pose"
+  type: "InnerProduct"
+  bottom: "expected_xy"
+  top: "pred_pose"
+  param {
+    lr_mult: 5
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 10
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 9
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "euc_distance"
+  type: "EuclideanDistance"
+  bottom: "pred_pose"
+  bottom: "position"
+  top: "average_distance"
+  include: {phase: TEST}
+}
+layer {
+  name: "euc_loss"
+  type: "EuclideanLoss"
+  bottom: "pred_pose"
+  bottom: "position"
+  top: "supervised_cost"
+  loss_weight: 1
+}
+
+layer {
+  name: "fc_z"
+  type: "InnerProduct"
+  bottom: "expected_xy"
+  top: "z"
+  param {
+    lr_mult: 5
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 10
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "xcov_loss"
+  type: "XCovLoss"
+  bottom: "pred_pose"
+  bottom: "z"
+  top: "xcov_loss"
+  loss_weight: 1000
+}
+
+layer {
+  name: "concat_encoding"
+  type: "Concat"
+  bottom: "z"
+  bottom: "pred_pose"
+  top: "encoding"
+  concat_param {
+    axis: 1
+  }
+}
+
+layer {
+  name: "fc_decode1"
+  type: "InnerProduct"
+  bottom: "encoding"
+  top: "decode1"
+  param {
+    lr_mult: 5
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 10
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 64
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+# Unconstrained fully connected layer for now. Might want to reshape input to
+# be Nx32x2 and then make a fc layer on axis 2 (to connect two values to a
+# feature map).
+# output is 25x25x4
+layer {
+  name: "fc_decode2"
+  type: "InnerProduct"
+  bottom: "decode1"
+  top: "decode_heatmap"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 2500
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "reshape"
+  type: "Reshape"
+  bottom: "decode_heatmap"
+  top: "decode_heatmap"
+  reshape_param {
+    shape: {
+      dim: [25, 4, 25, 25]
+    }
+  }
+  include: { phase: TRAIN }
+}
+layer {
+  name: "reshape"
+  type: "Reshape"
+  bottom: "decode_heatmap"
+  top: "decode_heatmap"
+  reshape_param {
+    shape: {
+      dim: [10, 4, 25, 25]
+    }
+  }
+  include: { phase: TEST }
+}
+
+layer {
+  name: "deconv1"
+  type: "Deconvolution"
+  bottom: "decode_heatmap"
+  top: "deconv1"
+  param {
+    lr_mult: 2
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 3
+    kernel_size: 5
+    stride: 2
+  }
+}
+layer {
+  name: "upsample"
+  type: "Deconvolution"
+  bottom: "deconv1"
+  top: "pred_image"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 3
+    kernel_size: 32
+    stride: 4
+    pad: 0
+  }
+}
+layer {
+  name: "reconstruction_cost"
+  type: "EuclideanLoss"
+  bottom: "pred_image"
+  bottom: "lrn_frames"
+  top: "reconstruction_cost"
+  loss_weight: 1
+}
