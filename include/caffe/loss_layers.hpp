@@ -560,7 +560,7 @@ template <typename Dtype>
 class IOCLossLayer : public LossLayer<Dtype> {
  public:
   explicit IOCLossLayer(const LayerParameter& param)
-      : LossLayer<Dtype>(param), diff_() {}
+      : LossLayer<Dtype>(param), demo_counts_(), sample_counts_() {}
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
@@ -613,6 +613,9 @@ class IOCLossLayer : public LossLayer<Dtype> {
 
   Blob<Dtype> demo_counts_;
   Blob<Dtype> sample_counts_;
+
+  /// Max value used for safe exponentiation, and cached partition function.
+  Dtype max_val_, partition_;
   /// The length of demo and sample trajectories.
   int T_;
   /// The number of samples and demos.
