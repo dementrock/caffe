@@ -38,6 +38,7 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       dc[i] += bottom[0]->data_at(i,t,0,0);
     }
     loss += dc[i];
+    // Add importance weight to dc[i] here.
   }
   // Divide by number of demos.
   loss /= (Dtype)nd_;
@@ -48,6 +49,7 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     for (int t = 0; t < T_; ++t) {
       sc[i] += bottom[1]->data_at(i,t,0,0);
     }
+    // add importance weight i to sc[i] here.
     if (-sc[i] > max_val_) max_val_ = -sc[i];
   }
 
