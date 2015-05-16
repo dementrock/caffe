@@ -254,7 +254,7 @@ template <typename Dtype>
 class MemoryDataLayer : public BaseDataLayer<Dtype> {
  public:
   explicit MemoryDataLayer(const LayerParameter& param)
-      : BaseDataLayer<Dtype>(param), has_new_data_(false) {}
+      : BaseDataLayer<Dtype>(param), has_new_data_(false), n_(0) {}
   virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
@@ -271,6 +271,7 @@ class MemoryDataLayer : public BaseDataLayer<Dtype> {
   // Reset should accept const pointers, but can't, because the memory
   //  will be given to Blob, which is mutable
   void Reset(vector<Dtype*> data, int n);
+  void SetBatchSize(int new_batch_size);
   // void set_batch_size(int new_size);
 
   int batch_size() { return batch_size_; }
