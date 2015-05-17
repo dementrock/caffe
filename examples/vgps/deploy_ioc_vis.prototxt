@@ -12,7 +12,7 @@ layer {
       dim: 1
     }
   }
-  include: {phase:FORWARDB}
+  include: {phase:TEST}
 }
 layer {
   name: "forward_features"
@@ -20,7 +20,7 @@ layer {
   top: "all_images"
   image_data_param {
     source: "img_database_temp/demo_ioc_images.txt"
-    batch_size: 100  # Must be same as slice point and demo batch size*100
+    batch_size: 100
   }
   include: {phase: FORWARDA}
 }
@@ -236,7 +236,7 @@ layer {
 }
 ## END: FORWARDA NETWORK ##
 
-## START: FORWARDB NETWORK ##
+## START: TEST NETWORK ##
 # Affine cost layer
 layer {
   name: "fc1"
@@ -263,7 +263,7 @@ layer {
       value: 0
     }
   }
-  include: {phase:FORWARDB}
+  include: {phase:TEST}
   include: {phase: TRAIN}
 }
 layer {
@@ -275,7 +275,7 @@ layer {
   eltwise_param {
     operation: PROD
   }
-  include: {phase:FORWARDB}
+  include: {phase:TEST}
   include: {phase: TRAIN}
 }
 layer {
@@ -303,10 +303,10 @@ layer {
       value: 0
     }
   }
-  include: {phase:FORWARDB}
+  include: {phase:TEST}
   include: {phase:TRAIN}
 }
-## END: FORWARDB NETWORK ##
+## END: TEST NETWORK ##
 
 ## START: EXTRA TRAIN LAYERS ##
 layer {
