@@ -35,7 +35,7 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   for (int i = 0; i < nd_; ++i) {
     dc[i] = 0.0;
     for (int t = 0; t < T_; ++t) {
-      dc[i] += bottom[0]->data_at(i,t,0,0);
+      dc[i] += 0.5 * bottom[0]->data_at(i,t,0,0);
     }
     loss += dc[i];
     // Add importance weight to dc[i] here.
@@ -47,7 +47,7 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   for (int i = 0; i < ns_; ++i) {
     sc[i] = 0.0;
     for (int t = 0; t < T_; ++t) {
-      sc[i] += bottom[1]->data_at(i,t,0,0);
+      sc[i] += 0.5 * bottom[1]->data_at(i,t,0,0);
     }
     // add importance weight i to sc[i] here.
     if (-sc[i] > max_val_) max_val_ = -sc[i];
@@ -81,7 +81,7 @@ template <typename Dtype>
 void IOCLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
 
-  const Dtype loss_weight = top[0]->cpu_diff()[0];
+  const Dtype loss_weight = 0.5*top[0]->cpu_diff()[0];
   const Dtype* dc = demo_counts_.cpu_data();
   const Dtype* sc = sample_counts_.cpu_data();
   // Compute gradient w.r.t. demos
