@@ -252,7 +252,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 26 # What should this be??
+    num_output: 50 # What should this be??
     axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
