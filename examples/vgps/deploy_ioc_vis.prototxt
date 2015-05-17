@@ -15,14 +15,30 @@ layer {
   include: {phase:TEST}
 }
 layer {
-  name: "forward_features"
+  name: "image_data"
   type: "ImageData"
   top: "all_images"
   image_data_param {
     source: "img_database_temp/demo_ioc_images.txt"
     batch_size: 100
   }
+  # batch_size: 100 # not sure where is better.
   include: {phase: FORWARDA}
+}
+layer {
+  # Input is NxTxF
+  name: "state_data"
+  type: "MemoryData"
+  top: "all_states"
+  memory_data_param {
+    input_shapes {
+      dim: 1
+      dim: 100  # T
+      dim: 32  # 32joint state+64fp
+      dim: 1
+    }
+  }
+  include: {phase:FORWARDA}
 }
 layer {
   # Input is NxTxF
@@ -233,6 +249,24 @@ layer {
     }
   }
   include: { phase: FORWARDA}
+}
+layer {
+  name: "flatten_fp"
+  type: "Flatten"
+  bottom: "expected_xy"
+  top: "flat_xy"
+  include: {phase:FORWARDA}
+}
+layer {
+  name: "concat_features"
+  type: "Concat"
+  bottom: "all_states"
+  bottom: "flat_xy"
+  top: "all_cost_features"
+  concat_param {
+    axis: 2
+  }
+  include: {phase:FORWARDA}
 }
 ## END: FORWARDA NETWORK ##
 
