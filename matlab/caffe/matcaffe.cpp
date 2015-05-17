@@ -198,7 +198,7 @@ static void vgps_train2(const mxArray* const bottom1, const mxArray* const botto
 
 
 // Input is a cell array of 4 4-D arrays containing image and joint info
-// Only to be colled when solver exists.
+// ****Only to be called when solver exists.*****
 static mxArray* vgps_forward(const mxArray* const bottom) {
 
   shared_ptr<MemoryDataLayer<float> > md_layer =
@@ -323,81 +323,29 @@ static mxArray* vgps_forward2(const mxArray* const bottom1, const mxArray* const
   return mx_out;
 }
 
-
-// Input is a cell array of 2 4-D arrays containing image and joint info
-static mxArray* vgps_forwarda_only(const mxArray* const bottom) {
-  shared_ptr<MemoryDataLayer<float> > md_layer =
-    boost::dynamic_pointer_cast<MemoryDataLayer<float> >(net_->layers()[0]);
-  vector<float*> inputs;
-  int num_samples;
-
-  for (int i = 0; i < mxGetNumberOfElements(bottom); ++i) {
-    mxArray* const data = mxGetCell(bottom, i);
-    float* const data_ptr = reinterpret_cast<float* const>(mxGetPr(data));
-    CHECK(mxIsSingle(data)) << "MatCaffe require single-precision float point data";
-    inputs.push_back(data_ptr);
-
-    // Only need to figure out the number of samples once.
-    if (i == 0) {
-      const int num_dim = mxGetNumberOfDimensions(data);
-      num_samples = mxGetDimensions(data)[num_dim-1]; // dimensions reversed...
-      LOG(INFO) << num_samples << "< num samples";
-    }
-  }
-
-  md_layer->Reset(inputs, num_samples);
-
-  float initial_loss;
-  LOG(INFO) << "Running forward pass";
-  const vector<Blob<float>*>& output_blobs = net_->ForwardPrefilled(&initial_loss);
-  CHECK_EQ(output_blobs.size(), 1);
-
-  // output of fc is the only output blob.
-  mxArray* mx_out = mxCreateCellMatrix(1, 1);
-  mwSize dims[4] = {output_blobs[0]->width(), output_blobs[0]->height(),
-    output_blobs[0]->channels(), output_blobs[0]->num()};
-  mxArray* mx_blob =  mxCreateNumericArray(4, dims, mxSINGLE_CLASS, mxREAL);
-  mxSetCell(mx_out, 0, mx_blob);
-  float* data_ptr = reinterpret_cast<float*>(mxGetPr(mx_blob));
-  switch (Caffe::mode()) {
-  case Caffe::CPU:
-    caffe_copy(output_blobs[0]->count(), output_blobs[0]->cpu_data(),
-        data_ptr);
-    break;
-  case Caffe::GPU:
-    caffe_copy(output_blobs[0]->count(), output_blobs[0]->gpu_data(),
-        data_ptr);
-    break;
-  default:
-    mex_error("Unknown Caffe mode.");
-  }  // switch (Caffe::mode())
-
-  return mx_out;
-}
-// Input is a cell array of 2 4-D arrays containing image and joint info
 static mxArray* vgps_forward_only(const mxArray* const bottom) {
-  //vector<shared_ptr<Blob<float> > > input_blobs;
-  //input_blobs.resize(2);
-  shared_ptr<MemoryDataLayer<float> > md_layer =
-    boost::dynamic_pointer_cast<MemoryDataLayer<float> >(net_->layers()[0]);
-  vector<float*> inputs;
-  int num_samples;
+  if (mxGetNumberOfElements(bottom) != 0) {
+    shared_ptr<MemoryDataLayer<float> > md_layer =
+      boost::dynamic_pointer_cast<MemoryDataLayer<float> >(net_->layers()[0]);
+    vector<float*> inputs;
+    int num_samples;
 
-  for (int i = 0; i < mxGetNumberOfElements(bottom); ++i) {
-    mxArray* const data = mxGetCell(bottom, i);
-    float* const data_ptr = reinterpret_cast<float* const>(mxGetPr(data));
-    CHECK(mxIsSingle(data)) << "MatCaffe require single-precision float point data";
-    inputs.push_back(data_ptr);
+    for (int i = 0; i < mxGetNumberOfElements(bottom); ++i) {
+      mxArray* const data = mxGetCell(bottom, i);
+      float* const data_ptr = reinterpret_cast<float* const>(mxGetPr(data));
+      CHECK(mxIsSingle(data)) << "MatCaffe require single-precision float point data";
+      inputs.push_back(data_ptr);
 
-    // Only need to figure out the number of samples once.
-    if (i == 0) {
-      const int num_dim = mxGetNumberOfDimensions(data);
-      num_samples = mxGetDimensions(data)[num_dim-1]; // dimensions reversed...
-      LOG(INFO) << num_samples << "< num samples";
+      // Only need to figure out the number of samples once.
+      if (i == 0) {
+        const int num_dim = mxGetNumberOfDimensions(data);
+        num_samples = mxGetDimensions(data)[num_dim-1]; // dimensions reversed...
+        LOG(INFO) << num_samples << "< num samples";
+      }
     }
-  }
 
-  md_layer->Reset(inputs, num_samples);
+    md_layer->Reset(inputs, num_samples);
+  }
 
   float initial_loss;
   const vector<Blob<float>*>& output_blobs = net_->ForwardPrefilled(&initial_loss);
@@ -834,6 +782,55 @@ static void init_test_batch(MEX_ARGS) {
   }
 }
 
+// first arg is prototxt file, 2nd optional arg is source data txt,
+// third optional arg is model weights file
+// coming soon: second optional arg is batch size, third optional arg is model weights file
+static void init_forwarda_imgdata(MEX_ARGS) {
+  if (nrhs != 2 && nrhs != 1 && nrhs != 3) {
+    ostringstream error_msg;
+    error_msg << "Only given " << nrhs << " arguments";
+    mex_error(error_msg.str());
+  }
+
+  char* param_file = mxArrayToString(prhs[0]);
+  if (solver_) {
+    solver_.reset();
+  }
+  NetParameter net_param;
+  ReadNetParamsFromTextFileOrDie(string(param_file), &net_param);
+
+  // Alter batch size of memory data layer in net_param
+  if (nrhs == 2) {
+    const char* source_data_string = mxArrayToString(prhs[1]);
+    // int batch_size = atoi(batch_size_string);
+
+    for (int i = 0; i < net_param.layers_size(); ++i) {
+      const LayerParameter& layer_param = net_param.layer(i);
+      if (layer_param.type() != "ImageData") continue;
+      ImageDataParameter* imgdata_param = net_param.mutable_layer(i)->mutable_image_data_param();
+      // Change batch size of all blobs in the memory data layer parameter
+      imgdata_param->set_source(source_data_string);
+    }
+  }
+  NetState* net_state = net_param.mutable_state();
+  net_state->set_phase(FORWARDA);
+  net_.reset(new Net<float>(net_param));
+
+  if (nrhs == 3) {
+    char* model_file = mxArrayToString(prhs[2]);
+    net_->CopyTrainedLayersFrom(string(model_file));
+    mxFree(model_file);
+  }
+
+  mxFree(param_file);
+
+  init_key = random();  // NOLINT(caffe/random_fn)
+
+  if (nlhs == 1) {
+    plhs[0] = mxCreateDoubleScalar(init_key);
+  }
+}
+
 
 // first arg is prototxt file, second optional arg is batch size, third optional arg is model weights file
 // Can initialize weights from string, use init_test to initialize from caffemodel file
@@ -868,6 +865,56 @@ static void init_forwarda_batch(MEX_ARGS) {
   }
   NetState* net_state = net_param.mutable_state();
   net_state->set_phase(FORWARDA);
+  net_.reset(new Net<float>(net_param));
+
+  if (nrhs == 3) {
+    char* model_file = mxArrayToString(prhs[2]);
+    net_->CopyTrainedLayersFrom(string(model_file));
+    mxFree(model_file);
+  }
+
+  mxFree(param_file);
+
+  init_key = random();  // NOLINT(caffe/random_fn)
+
+  if (nlhs == 1) {
+    plhs[0] = mxCreateDoubleScalar(init_key);
+  }
+}
+
+// first arg is prototxt file, second optional arg is batch size, third optional arg is model weights file
+// Can initialize weights from string, use init_test to initialize from caffemodel file
+static void init_forwardb_batch(MEX_ARGS) {
+  if (nrhs != 2 && nrhs != 1 && nrhs != 3) {
+    ostringstream error_msg;
+    error_msg << "Only given " << nrhs << " arguments";
+    mex_error(error_msg.str());
+  }
+
+  char* param_file = mxArrayToString(prhs[0]);
+  if (solver_) {
+    solver_.reset();
+  }
+  NetParameter net_param;
+  ReadNetParamsFromTextFileOrDie(string(param_file), &net_param);
+
+  // Alter batch size of memory data layer in net_param
+  if (nrhs == 2) {
+    const char* batch_size_string = mxArrayToString(prhs[1]);
+    int batch_size = atoi(batch_size_string);
+
+    for (int i = 0; i < net_param.layers_size(); ++i) {
+      const LayerParameter& layer_param = net_param.layer(i);
+      if (layer_param.type() != "MemoryData") continue;
+      MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
+      // Change batch size of all blobs in the memory data layer parameter
+      for (int blob_i = 0; blob_i < mem_param->input_shapes_size(); ++blob_i) {
+        mem_param->mutable_input_shapes(blob_i)->set_dim(0, batch_size);
+      }
+    }
+  }
+  NetState* net_state = net_param.mutable_state();
+  net_state->set_phase(FORWARDB);
   net_.reset(new Net<float>(net_param));
 
   if (nrhs == 3) {
@@ -1033,15 +1080,6 @@ static void vgps_forward_only(MEX_ARGS) {
   plhs[0] = vgps_forward_only(prhs[0]);
 }
 
-static void vgps_forwarda_only(MEX_ARGS) {
-  if (nrhs != 1) {
-    LOG(ERROR) << "Only given " << nrhs << " arguments";
-    mexErrMsgTxt("Wrong number of arguments");
-  }
-
-  plhs[0] = vgps_forwarda_only(prhs[0]);
-}
-
 static void backward(MEX_ARGS) {
   if (nrhs != 1) {
     LOG(ERROR) << "Only given " << nrhs << " arguments";
@@ -1104,12 +1142,13 @@ static handler_registry handlers[] = {
   // Public API functions
   { "forward",            vgps_forward    },
   { "forward_only",       vgps_forward_only    },
-  { "forwarda_only",      vgps_forwarda_only    },
   { "backward",           backward        },
   { "init",               init            },
   { "init_test",          init_test       },
   { "init_test_batch",    init_test_batch},
   { "init_forwarda_batch",init_forwarda_batch},
+  { "init_forwarda_imgdata",init_forwarda_imgdata},
+  { "init_forwardb_batch",init_forwardb_batch},
   { "init_train",         init_train      },
   { "is_initialized",     is_initialized  },
   { "set_mode_cpu",       set_mode_cpu    },
