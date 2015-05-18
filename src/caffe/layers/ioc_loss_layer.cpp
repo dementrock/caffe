@@ -19,6 +19,8 @@ void IOCLossLayer<Dtype>::Reshape(
   nd_ = bottom[0]->num();
   ns_ = bottom[1]->num();
   CHECK_EQ(bottom[0]->channels(), bottom[1]->channels());
+  CHECK_EQ(bottom[0]->num(), bottom[2]->num()); // 1 weight per trial
+  CHECK_EQ(bottom[1]->num(), bottom[3]->num());
   demo_counts_.Reshape(nd_, 1, 1, 1);
   sample_counts_.Reshape(ns_, 1, 1, 1);
 }
@@ -30,6 +32,8 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   Dtype* dc = demo_counts_.mutable_cpu_data();
   Dtype* sc = sample_counts_.mutable_cpu_data();
 
+  const Dtype* dlogis = bottom[2]->cpu_data();
+  const Dtype* slogis = bottom[3]->cpu_data();
 
   // Sum over time and compute max value for safe logsum.
   for (int i = 0; i < nd_; ++i) {
@@ -38,7 +42,8 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       dc[i] += 0.5 * bottom[0]->data_at(i,t,0,0);
     }
     loss += dc[i];
-    // Add importance weight to dc[i] here.
+    // Add importance weight to demo feature count. Will be negated.
+    dc[i] += dlogis[i];
   }
   // Divide by number of demos.
   loss /= (Dtype)nd_;
@@ -49,7 +54,8 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     for (int t = 0; t < T_; ++t) {
       sc[i] += 0.5 * bottom[1]->data_at(i,t,0,0);
     }
-    // add importance weight i to sc[i] here.
+    // Add importance weight to sample feature count. Will be negated.
+    sc[i] += slogis[i];
     if (-sc[i] > max_val_) max_val_ = -sc[i];
   }
 
