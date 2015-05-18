@@ -23,6 +23,8 @@ class IOCLossLayerTest : public MultiDeviceTest<TypeParam> {
   IOCLossLayerTest()
       : blob_bottom_data_(new Blob<Dtype>(7, 10, 1, 1)),
         blob_bottom_label_(new Blob<Dtype>(5, 10, 1, 1)),
+        blob_demo_weights_(new Blob<Dtype>(7, 1, 1, 1)),
+        blob_sample_weights_(new Blob<Dtype>(5, 1, 1, 1)),
         blob_top_loss_(new Blob<Dtype>()) {
     // fill the values
     FillerParameter filler_param;
@@ -31,11 +33,21 @@ class IOCLossLayerTest : public MultiDeviceTest<TypeParam> {
     blob_bottom_vec_.push_back(blob_bottom_data_);
     filler.Fill(this->blob_bottom_label_);
     blob_bottom_vec_.push_back(blob_bottom_label_);
+
+    FillerParameter cfiller_param;
+    ConstantFiller<Dtype> cfiller(cfiller_param);
+    cfiller.Fill(this->blob_demo_weights_);
+    blob_bottom_vec_.push_back(blob_demo_weights_);
+    cfiller.Fill(this->blob_sample_weights_);
+    blob_bottom_vec_.push_back(blob_sample_weights_);
+
     blob_top_vec_.push_back(blob_top_loss_);
   }
   virtual ~IOCLossLayerTest() {
     delete blob_bottom_data_;
     delete blob_bottom_label_;
+    delete blob_demo_weights_;
+    delete blob_sample_weights_;
     delete blob_top_loss_;
   }
 
@@ -65,6 +77,8 @@ class IOCLossLayerTest : public MultiDeviceTest<TypeParam> {
 
   Blob<Dtype>* const blob_bottom_data_;
   Blob<Dtype>* const blob_bottom_label_;
+  Blob<Dtype>* const blob_demo_weights_;
+  Blob<Dtype>* const blob_sample_weights_;
   Blob<Dtype>* const blob_top_loss_;
   vector<Blob<Dtype>*> blob_bottom_vec_;
   vector<Blob<Dtype>*> blob_top_vec_;
@@ -86,7 +100,9 @@ TYPED_TEST(IOCLossLayerTest, TestGradient) {
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
   GradientChecker<Dtype> checker(1e-2, 1e-2, 1701);
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
-      this->blob_top_vec_);
+      this->blob_top_vec_, 0);
+  checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
+      this->blob_top_vec_, 1);
 }
 
 }  // namespace caffe
