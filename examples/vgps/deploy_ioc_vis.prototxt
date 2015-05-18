@@ -15,6 +15,21 @@ layer {
   include: {phase:TEST}
 }
 layer {
+  # Input is NxTxF
+  name: "state_data"
+  type: "MemoryData"
+  top: "all_states"
+  memory_data_param {
+    input_shapes {
+      dim: 100 # T
+      dim: 32  # 32joint state+64fp
+      dim: 1
+      dim: 1
+    }
+  }
+  include: {phase:FORWARDA}
+}
+layer {
   name: "image_data"
   type: "ImageData"
   top: "all_images"
@@ -27,29 +42,21 @@ layer {
 }
 layer {
   # Input is NxTxF
-  name: "state_data"
-  type: "MemoryData"
-  top: "all_states"
-  memory_data_param {
-    input_shapes {
-      dim: 1
-      dim: 100  # T
-      dim: 32  # 32joint state+64fp
-      dim: 1
-    }
-  }
-  include: {phase:FORWARDA}
-}
-layer {
-  # Input is NxTxF
   name: "data_in_demos"
   type: "MemoryData"
   top: "demo_cost_features"
+  top: "demo_logis"
   memory_data_param {
     input_shapes {
       dim: 10  # batch size, must be same as slice point
       dim: 100  # T
       dim: 96  # 64+32, dimension of phi
+      dim: 1
+    }
+    input_shapes {
+      dim: 10  # batch size, must be same as slice point
+      dim: 1
+      dim: 1
       dim: 1
     }
   }
@@ -59,6 +66,7 @@ layer {
   name: "data_in_samples"
   type: "MemoryData"
   top: "sample_cost_features"
+  top: "sample_logis"
   memory_data_param {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
@@ -66,6 +74,12 @@ layer {
       dim: 96  # 64+32, dimension of phi
       dim: 1
     }
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 1
+      dim: 1
+      dim: 1
+     }
   }
   include: {phase: TRAIN}
 }
@@ -217,7 +231,6 @@ layer {
   spatial_softmax_param {
     engine: CAFFE
     temperature: 1.0
-    dimension: "spatial"
   }
   include: { phase: FORWARDA}
 }
@@ -258,13 +271,20 @@ layer {
   include: {phase:FORWARDA}
 }
 layer {
+  name: "flatten_as"
+  type: "Flatten"
+  bottom: "all_states"
+  top: "flat_all_states"
+  include: {phase:FORWARDA}
+}
+layer {
   name: "concat_features"
   type: "Concat"
-  bottom: "all_states"
+  bottom: "flat_all_states"
   bottom: "flat_xy"
   top: "all_cost_features"
   concat_param {
-    axis: 2
+    axis: 1
   }
   include: {phase:FORWARDA}
 }
@@ -360,6 +380,8 @@ layer {
   type: "IOCLoss"
   bottom: "demo_cost"
   bottom: "sample_cost"
+  bottom: "demo_logis"
+  bottom: "sample_logis"
   top: "ioc_loss"
   loss_weight: 1 # Used 1 for demo batch size of 10.
   include: {phase:TRAIN}
