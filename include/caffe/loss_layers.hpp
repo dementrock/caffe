@@ -572,6 +572,11 @@ class IOCLossLayer : public LossLayer<Dtype> {
   virtual inline bool AllowForceBackward(const int bottom_index) const {
     return true;
   }
+  // 3 bottoms are demo features, sample features, and log importance weights (d&s)
+  virtual inline int ExactNumBottomBlobs() const { return 4; }
+  // virtual inline int MinBottomBlobs() const { return 2; }
+  // virtual inline int MaxBottomBlobs() const { return 3; }
+
 
  protected:
   /// @copydoc IOCLossLayer
