@@ -323,7 +323,7 @@ static mxArray* vgps_forward2(const mxArray* const bottom1, const mxArray* const
   return mx_out;
 }
 
-static mxArray* vgps_forward_only(const mxArray* const bottom) {
+static mxArray* vgps_forward_only(const mxArray* const bottom, int batch_size) {
   if (mxGetNumberOfElements(bottom) != 0) {
     shared_ptr<MemoryDataLayer<float> > md_layer =
       boost::dynamic_pointer_cast<MemoryDataLayer<float> >(net_->layers()[0]);
@@ -344,6 +344,7 @@ static mxArray* vgps_forward_only(const mxArray* const bottom) {
       }
     }
 
+    if (batch_size != -1) md_layer->SetBatchSize(batch_size);
     md_layer->Reset(inputs, num_samples);
   }
 
@@ -702,8 +703,10 @@ static void get_init_key(MEX_ARGS) {
 }
 
 // First arg is solver, second is initial weights string (optional).
+// second arg is actually base learning rate. Use set_weights to
+// set initial weights. third arg is num_iter.
 static void init_train(MEX_ARGS) {
-  if (nrhs != 2 && nrhs != 1) {
+  if (nrhs != 2 && nrhs != 1 && nrhs != 3) {
     ostringstream error_msg;
     error_msg << "Only given " << nrhs << " arguments";
     mex_error(error_msg.str());
@@ -716,13 +719,27 @@ static void init_train(MEX_ARGS) {
   mxFree(solver_file);
   LOG(INFO) << "Read solver param from solver file";
 
+  if (nrhs >= 2) {
+    const char* lr_string = mxArrayToString(prhs[1]);
+    float base_lr = std::strtof(lr_string, NULL);
+    solver_param.set_base_lr(base_lr);
+    LOG(INFO) << "Setting base learning rate: " << base_lr;
+  }
+
+  if (nrhs >= 3) {
+    const char* iter_str = mxArrayToString(prhs[2]);
+    int max_iter = atoi(iter_str);
+    solver_param.set_max_iter(max_iter);
+    LOG(INFO) << "Setting max iter: " << max_iter;
+  }
+
   solver_.reset(GetSolver<float>(solver_param));
   net_ = solver_->net();
 
   if (nrhs == 2) {
-    char* model_file = mxArrayToString(prhs[1]);
-    solver_->net()->CopyTrainedLayersFrom(string(model_file));
-    mxFree(model_file);
+    // char* model_file = mxArrayToString(prhs[1]);
+    // solver_->net()->CopyTrainedLayersFrom(string(model_file));
+    // mxFree(model_file);
   }
 
   // Set network as initialized
@@ -749,7 +766,7 @@ static void init_test_batch(MEX_ARGS) {
   ReadNetParamsFromTextFileOrDie(string(param_file), &net_param);
 
   // Alter batch size of memory data layer in net_param
-  if (nrhs == 2) {
+  if (nrhs >= 2) {
     const char* batch_size_string = mxArrayToString(prhs[1]);
     int batch_size = atoi(batch_size_string);
 
@@ -834,6 +851,7 @@ static void init_forwarda_imgdata(MEX_ARGS) {
 
 // first arg is prototxt file, second optional arg is batch size, third optional arg is model weights file
 // Can initialize weights from string, use init_test to initialize from caffemodel file
+// Batch size changing **does not** work! Pass in batch size when calling forward only.
 static void init_forwarda_batch(MEX_ARGS) {
   if (nrhs != 2 && nrhs != 1 && nrhs != 3) {
     ostringstream error_msg;
@@ -849,9 +867,11 @@ static void init_forwarda_batch(MEX_ARGS) {
   ReadNetParamsFromTextFileOrDie(string(param_file), &net_param);
 
   // Alter batch size of memory data layer in net_param
-  if (nrhs == 2) {
+  if (nrhs >= 2) {
     const char* batch_size_string = mxArrayToString(prhs[1]);
     int batch_size = atoi(batch_size_string);
+
+    LOG(INFO) << "New batch size: " << batch_size;
 
     for (int i = 0; i < net_param.layers_size(); ++i) {
       const LayerParameter& layer_param = net_param.layer(i);
@@ -867,7 +887,7 @@ static void init_forwarda_batch(MEX_ARGS) {
   net_state->set_phase(FORWARDA);
   net_.reset(new Net<float>(net_param));
 
-  if (nrhs == 3) {
+  if (nrhs >= 3) {
     char* model_file = mxArrayToString(prhs[2]);
     net_->CopyTrainedLayersFrom(string(model_file));
     mxFree(model_file);
@@ -1072,12 +1092,19 @@ static void vgps_forward2(MEX_ARGS) {
 
 
 static void vgps_forward_only(MEX_ARGS) {
-  if (nrhs != 1) {
-    LOG(ERROR) << "Only given " << nrhs << " arguments";
+  if (nrhs != 1 && nrhs != 2) {
+    LOG(ERROR) << "Given " << nrhs << " arguments";
     mexErrMsgTxt("Wrong number of arguments");
   }
 
-  plhs[0] = vgps_forward_only(prhs[0]);
+  if (nrhs == 1) {
+    plhs[0] = vgps_forward_only(prhs[0], -1);
+  } else {
+    const char* batch_size_string = mxArrayToString(prhs[1]);
+    int batch_size = atoi(batch_size_string);
+
+    plhs[0] = vgps_forward_only(prhs[0], batch_size);
+  }
 }
 
 static void backward(MEX_ARGS) {
