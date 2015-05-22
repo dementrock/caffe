@@ -344,11 +344,15 @@ static mxArray* vgps_forward_only(const mxArray* const bottom) {
       }
     }
 
+    LOG(INFO) << "reset md";
     md_layer->Reset(inputs, num_samples);
+    LOG(INFO) << "success with md";
   }
 
   float initial_loss;
+  LOG(INFO) << "running forward";
   const vector<Blob<float>*>& output_blobs = net_->ForwardPrefilled(&initial_loss);
+  LOG(INFO) << "ran forward";
   CHECK_EQ(output_blobs.size(), 1);
 
   // output of fc is the only output blob.
