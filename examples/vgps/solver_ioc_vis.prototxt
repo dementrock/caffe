@@ -2,7 +2,7 @@ train_net: "../caffe/examples/vgps/deploy_ioc_vis.prototxt"
 solver_type: SGD
 # average_loss: 50
 #test_interval: 2000
-base_lr: 0.01 # was .008 before 0.5 change
+base_lr: 0.0005 # was .008 before 0.5 change
 lr_policy: "step"
 gamma: 0.1
 stepsize: 8000
