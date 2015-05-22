@@ -704,6 +704,19 @@ static void get_init_key(MEX_ARGS) {
   plhs[0] = mxCreateDoubleScalar(init_key);
 }
 
+static void set_weights_from_file(MEX_ARGS) {
+  if (nrhs != 1) {
+    ostringstream error_msg;
+    error_msg << "Only given " << nrhs << " arguments";
+    mex_error(error_msg.str());
+  }
+
+  char* model_file = mxArrayToString(prhs[0]);
+  net_->CopyTrainedLayersFrom(string(model_file));
+  mxFree(model_file);
+
+}
+
 // First arg is solver, second is initial weights string (optional).
 // second arg is actually base learning rate. Use set_weights to
 // set initial weights. third arg is num_iter.
@@ -1187,6 +1200,7 @@ static handler_registry handlers[] = {
   { "get_weights_string", get_weights_string     },
   { "get_weights_array",  get_weights_array     },
   { "set_weights",        set_weights     },
+  { "set_weights_from_file",        set_weights_from_file     },
   { "save_weights",       save_weights_to_file     },
   { "get_init_key",       get_init_key    },
   { "reset",              reset           },
