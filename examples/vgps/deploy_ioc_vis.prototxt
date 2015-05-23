@@ -6,9 +6,9 @@ layer {
   top: "cost_features"
   memory_data_param {
     input_shapes {
-      dim: 100  # T
-      dim: 96  # 32joint state+64fp
       dim: 1
+      dim: 20  # T
+      dim: 96  # 32joint state+64fp
       dim: 1
     }
   }
@@ -21,7 +21,7 @@ layer {
   top: "all_states"
   memory_data_param {
     input_shapes {
-      dim: 100 # T
+      dim: 20 # T
       dim: 32  # 32joint state+64fp
       dim: 1
       dim: 1
@@ -35,7 +35,7 @@ layer {
   top: "all_images"
   image_data_param {
     source: "img_database_temp/demo_ioc_images.txt"
-    batch_size: 100
+    batch_size: 20
   }
   # batch_size: 100 # not sure where is better.
   include: {phase: FORWARDA}
@@ -48,13 +48,13 @@ layer {
   top: "demo_logis"
   memory_data_param {
     input_shapes {
-      dim: 10  # batch size, must be same as slice point
-      dim: 100  # T
+      dim: 5  # batch size, must be same as slice point
+      dim: 20  # T
       dim: 96  # 64+32, dimension of phi
       dim: 1
     }
     input_shapes {
-      dim: 10  # batch size, must be same as slice point
+      dim: 5  # batch size, must be same as slice point
       dim: 1
       dim: 1
       dim: 1
@@ -70,7 +70,7 @@ layer {
   memory_data_param {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
-      dim: 100  # T
+      dim: 20  # T
       dim: 96  # 64+32, dimension of phi
       dim: 1
     }
@@ -293,7 +293,7 @@ layer {
 ## START: TEST NETWORK ##
 # Affine cost layer
 layer {
-  name: "fc1"
+  name: "fc1_affine"
   type: "InnerProduct"
   bottom: "cost_features"
   top: "Ax"
@@ -307,7 +307,7 @@ layer {
   }
   inner_product_param {
     num_output: 50 # What should this be??
-    axis: -1  # Input is NxTxF
+    axis: -2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -371,7 +371,7 @@ layer {
   top: "sample_cost"
   slice_param {
     axis: 0
-    slice_point: 10 # Needs to be equal to demo batch size.
+    slice_point: 5 # Needs to be equal to demo batch size.
   }
   include: {phase:TRAIN}
 }
