@@ -1,22 +1,4 @@
 name: "JointAndImageStateRegressionNet"
-layer {
-  name: "image_data"
-  type: "ImageData"
-  top: "demo_images"
-  image_data_param {
-    source: "img_database_temp/demo_ioc_images.txt"
-    batch_size: 20*4
-  }
-}
-layer {
-  name: "image_data"
-  type: "ImageData"
-  top: "sample_images"
-  image_data_param {
-    source: "img_database_temp/demo_ioc_images.txt"
-    batch_size: 20*4
-  }
-}
 
 layer {
   # Input is NxTxF
@@ -26,13 +8,13 @@ layer {
   top: "demo_logis"
   memory_data_param {
     input_shapes {
-      dim: 4  # batch size, must be same as slice point
+      dim: 5  # batch size, must be same as slice point
       dim: 20  # T
       dim: 32  # 64+32, dimension of phi
       dim: 1
     }
     input_shapes {
-      dim: 4  # batch size, must be same as slice point
+      dim: 5  # batch size, must be same as slice point
       dim: 1
       dim: 1
       dim: 1
@@ -46,26 +28,45 @@ layer {
   top: "sample_logis"
   memory_data_param {
     input_shapes {
-      dim: 4  # batch size, must be same as slice point
+      dim: 5  # batch size, must be same as slice point
       dim: 20  # T
       dim: 32  # 64+32, dimension of phi
       dim: 1
     }
     input_shapes {
-      dim: 4  # batch size, must be same as slice point
+      dim: 5  # batch size, must be same as slice point
       dim: 1
       dim: 1
       dim: 1
      }
   }
-  include: {phase: TRAIN}
 }
+
+layer {
+  name: "image_data"
+  type: "ImageData"
+  top: "demo_images"
+  image_data_param {
+    source: "img_database_temp/demo_ioc_images.txt"
+    batch_size: 100 #20*5
+  }
+}
+layer {
+  name: "image_data"
+  type: "ImageData"
+  top: "sample_images"
+  image_data_param {
+    source: "img_database_temp/demo_ioc_images.txt"
+    batch_size: 100 # 20*5
+  }
+}
+
 layer {
   name: "concat_states"
   type: "Concat"
   bottom: "demo_cost_phi"
   bottom: "sample_cost_phi"
-  top: "cost_features"
+  top: "all_states"
   concat_param {
     axis: 0
   }
@@ -108,14 +109,12 @@ layer {
       value: 0
     }
   }
-  include: { phase: FORWARDA}
 }
 layer {
   name: "relu1"
   type: "ReLU"
   bottom: "conv1"
   top: "conv1"
-  include: { phase: FORWARDA}
 }
 layer {
   name: "conv2"
@@ -143,14 +142,12 @@ layer {
       value: 0
     }
   }
-  include: { phase: FORWARDA}
 }
 layer {
   name: "relu2"
   type: "ReLU"
   bottom: "conv2"
   top: "conv2"
-  include: { phase: FORWARDA}
 }
 layer {
   name: "conv3"
@@ -178,14 +175,12 @@ layer {
       value: 0
     }
   }
-  include: { phase: FORWARDA}
 }
 layer {
   name: "relu3"
   type: "ReLU"
   bottom: "conv3"
   top: "conv3"
-  include: { phase: FORWARDA}
 }
 layer {
   name: "softmax"
@@ -226,13 +221,13 @@ layer {
   }
 }
 layer {
-  name: "reshape_fp" input is T*N x 2 x 32, want it to be NxTx64
+  name: "reshape_fp" #input is T*N x 2 x 32, want it to be NxTx64
   type: "Reshape"
   bottom: "expected_xy"
   top: "reshape_xy"
   reshape_param {
     shape {
-      dim: 4
+      dim: 10 %5+5
       dim: 20
       dim: 64
       dim: 1
@@ -258,9 +253,9 @@ layer {
 
 # Affine cost layer
 layer {
-  name: "fc1"
+  name: "fc1_affine"
   type: "InnerProduct"
-  bottom: "cost_features"
+  bottom: "all_cost_features"
   top: "Ax"
   param {
     lr_mult: 1 # 1 for full cold start
@@ -272,7 +267,7 @@ layer {
   }
   inner_product_param {
     num_output: 50 # What should this be??
-    axis: 2  # Input is NxTxF
+    axis: -2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -308,7 +303,7 @@ layer {
   }
   inner_product_param {
     num_output: 1  # Output is 2x cost for every time step - NxT
-    axis: 2  # Input is NxTxF
+    axis: -1  # Input is NxTxF
     weight_filler {
       type: "constant"
       value: 1
@@ -328,7 +323,7 @@ layer {
   top: "sample_cost"
   slice_param {
     axis: 0
-    slice_point: 4 # Needs to be equal to demo batch size.
+    slice_point: 5 # Needs to be equal to demo batch size.
   }
 }
 layer {
@@ -361,6 +356,5 @@ layer {
   bottom: "zeros"
   top: "reg_loss"
   loss_weight: 1e-4
-  include: {phase:TRAIN}
 }
 
