@@ -239,6 +239,9 @@ class ExpectationFiller : public Filler<Dtype> {
  * A Filler based on the paper [He, Zhang, Ren and Sun 2015]: Specifically
  * accounts for ReLU nonlinearities.
  *
+ * Aside: for another perspective on the scaling factor, see the derivation of
+ * [Saxe, McClelland, and Ganguli 2013 (v3)].
+ *
  * It fills the incoming matrix by randomly sampling Gaussian data with std =
  * sqrt(2 / n) where n is the fan_in, fan_out, or their average, depending on
  * the variance_norm option. You should make sure the input blob has shape (num,
