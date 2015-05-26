@@ -4,11 +4,18 @@ layer {
   name: "data_in_demos"
   type: "MemoryData"
   top: "demos"
+  top: "dlogis"
   memory_data_param {
     input_shapes {
-      dim: 10  # batch size, must be same as slice point
-      dim: 100  # T
+      dim: 5  # batch size, must be same as slice point
+      dim: 20  # T
       dim: 26  # dimension of phi
+      dim: 1
+    }
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 1
+      dim: 1
       dim: 1
     }
   }
@@ -18,11 +25,18 @@ layer {
   name: "data_in_samples"
   type: "MemoryData"
   top: "samples"
+  top: "slogis"
   memory_data_param {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
-      dim: 100  # T
+      dim: 20  # T
       dim: 26  # dimension of phi
+      dim: 1
+    }
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 1
+      dim: 1
       dim: 1
     }
   }
@@ -173,11 +187,11 @@ layer {
   bottom: "enc_all"
   top: "Ax"
   param {
-    lr_mult: 1
+    lr_mult: 1 # 1 for full cold start
     decay_mult: 1
   }
   param {
-    lr_mult: 2
+    lr_mult: 2 # 2 for full cold start
     decay_mult: 0
   }
   inner_product_param {
@@ -239,19 +253,10 @@ layer {
   top: "sample_cost"
   slice_param {
     axis: 0
-    slice_point: 10 # Needs to be equal to demo batch size.
+    slice_point: 5 # Needs to be equal to demo batch size.
   }
 }
 
-
-layer {
-  name: "loss"
-  type: "IOCLoss"
-  bottom: "demo_cost"
-  bottom: "sample_cost"
-  top: "ioc_loss"
-  loss_weight: 1 # Used 1 for demo batch size of 10.
-}
 # Regularization Loss
 
 ## Make an input of all zeros
@@ -275,16 +280,13 @@ layer {
   loss_weight: 1e-4
 }
 
-#layer {
-#  name: "output_lrn"
-#  type: HDF5_OUTPUT
-#  hdf5_output_param {
-#    file_name: "examples/vgps/data/lrn_output_exposure.h5"
-#  }
-#  bottom: "lrn_frames"
-#  bottom: "rgb_frames"
-#  include: {
-#    phase: TEST
-#  }
-#}
-
+layer {
+  name: "loss"
+  type: "IOCLoss"
+  bottom: "demo_cost"
+  bottom: "sample_cost"
+  bottom: "dlogis"
+  bottom: "slogis"
+  top: "ioc_loss"
+  loss_weight: 1 # Used 1 for most things, needs to be more for subsampled
+}
