@@ -79,6 +79,16 @@ void ImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   LOG(INFO) << "output data size: " << top[0]->num() << ","
       << top[0]->channels() << "," << top[0]->height() << ","
       << top[0]->width();
+
+  // DEBUGGING
+  // Apply transformations (mirror, crop...) to the image
+  // Dtype* prefetch_data = this->prefetch_data_.mutable_cpu_data();
+  // this->transformed_data_.set_cpu_data(prefetch_data);
+  this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
+  LOG(INFO) << "Sample pix value: " << this->transformed_data_.cpu_data()[0];
+  LOG(INFO) << "Sample pix value: " << this->transformed_data_.cpu_data()[1];
+  LOG(INFO) << "Sample pix value: " << this->transformed_data_.cpu_data()[2];
+
   // label
   // vector<int> label_shape(1, batch_size);
   // top[1]->Reshape(label_shape);
