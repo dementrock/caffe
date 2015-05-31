@@ -838,8 +838,8 @@ static void init_forwarda_imgdata(MEX_ARGS) {
 
     for (int i = 0; i < net_param.layers_size(); ++i) {
       const LayerParameter& layer_param = net_param.layer(i);
-      if (layer_param.type() != "ImageData") continue;
-      ImageDataParameter* imgdata_param = net_param.mutable_layer(i)->mutable_image_data_param();
+      if (layer_param.type() != "HDF5Data") continue;
+      HDF5DataParameter* imgdata_param = net_param.mutable_layer(i)->mutable_hdf5_data_param();
       // Change batch size of all blobs in the memory data layer parameter
       imgdata_param->set_source(source_data_string);
     }
