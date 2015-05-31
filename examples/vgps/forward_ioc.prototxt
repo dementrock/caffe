@@ -5,7 +5,7 @@ layer {
   top: "data_in"
   memory_data_param {
     input_shapes {
-      dim: 20  # T
+      dim: 100  # T
       dim: 26  # dimension of phi
       dim: 1
       dim: 1
@@ -19,8 +19,8 @@ layer {
   top: "enc_all"
   memory_data_param {
     input_shapes {
-      dim: 20  # T
-      dim: 26  # dimension of phi
+      dim: 100  # T
+      dim: 100  # dimension of Dy
       dim: 1
       dim: 1
     }
@@ -109,7 +109,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 26
+    num_output: 100
     axis: 1  # Input is TxF
     weight_filler {
       type: "gaussian"
@@ -137,7 +137,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 26
+    num_output: 100
     axis: 1  # Input is TxF
     weight_filler {
       type: "gaussian"
