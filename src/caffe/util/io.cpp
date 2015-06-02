@@ -250,7 +250,7 @@ void hdf5_load_nd_dataset_helper(
   status = H5LTget_dataset_info(
       file_id, dataset_name_, dims.data(), &class_, NULL);
   CHECK_GE(status, 0) << "Failed to get dataset info for " << dataset_name_;
-  CHECK_EQ(class_, H5T_FLOAT) << "Expected float or double data";
+  // CHECK_EQ(class_, H5T_FLOAT) << "Expected float or double data";
 
   vector<int> blob_dims(dims.size());
   for (int i = 0; i < dims.size(); ++i) {
@@ -262,9 +262,29 @@ void hdf5_load_nd_dataset_helper(
 template <>
 void hdf5_load_nd_dataset<float>(hid_t file_id, const char* dataset_name_,
         int min_dim, int max_dim, Blob<float>* blob) {
+  H5T_class_t class_;
+  herr_t status;
+  int ndims;
+  status = H5LTget_dataset_ndims(file_id, dataset_name_, &ndims);
+  std::vector<hsize_t> dims(ndims);
   hdf5_load_nd_dataset_helper(file_id, dataset_name_, min_dim, max_dim, blob);
-  herr_t status = H5LTread_dataset_float(
-    file_id, dataset_name_, blob->mutable_cpu_data());
+  status = H5LTget_dataset_info(
+      file_id, dataset_name_, dims.data(), &class_, NULL);
+  if (class_ == H5T_FLOAT) {
+    herr_t status = H5LTread_dataset_float(
+      file_id, dataset_name_, blob->mutable_cpu_data());
+  } else {
+    char* uint8_data = new char[blob->count()];
+    herr_t status = H5LTread_dataset_char(
+      file_id, dataset_name_, uint8_data);
+    LOG(INFO) << "status: " << status;
+    float* blob_data = blob->mutable_cpu_data();
+    for (int i = 0; i < blob->count(); ++i) {
+      blob_data[i] = (float) uint8_data[i];
+    }
+    delete[] uint8_data;
+    LOG(INFO) << "Converted to float, eg.: " << blob_data[0];
+  }
   CHECK_GE(status, 0) << "Failed to read float dataset " << dataset_name_;
 }
 
