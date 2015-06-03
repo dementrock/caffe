@@ -1,19 +1,19 @@
 net: "examples/vgps/train_val_pose_novariance_lrn.prototxt"
 solver_type: SGD
 test_state: { stage: 'test-on-val' }
-test_iter: 10 # normally 20
+test_iter: 16 # normally 20
 test_state: { stage: 'test-on-train' }
-test_iter: 90 # normally 180
+test_iter: 166 # normally 180
 test_interval: 500
-base_lr: 0.001
+base_lr: 0.01
 lr_policy: "multistep"
 gamma: 0.1
-#stepvalue: 500
-stepvalue: 8000
+stepvalue: 500
+stepvalue: 3000
 display: 100
-max_iter: 12000
+max_iter: 7000
 momentum: 0.9
 weight_decay: 0.005 # normally 0.005
 snapshot: 1000
-snapshot_prefix: "examples/vgps/snapshot/may21_botharms"
+snapshot_prefix: "examples/vgps/snapshot/demo_multitarget_slow_both_bn_nonlinear"
 solver_mode: GPU
