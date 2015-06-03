@@ -42,41 +42,6 @@ layer {
   }
   include: {phase: TRAIN}
 }
-#layer {
-#  name: "data"
-#  type: "HDF5Data"
-#  top: "demos"
-#  hdf5_data_param {
-#    source: "examples/vgps/demos_ioc.txt"
-#    batch_size: 5  # Must be same as slice point
-#  }
-#  include: { phase: TRAIN }
-#}
-#layer {
-#  name: "data"
-#  type: "HDF5Data"
-#  top: "samples"
-#  top: "rgb_frames"
-#  hdf5_data_param {
-#    source: "examples/vgps/samples_ioc.txt"
-#    batch_size: 10
-#  }
-#  include: { phase: TRAIN }
-#}
-#layer {
-#  name: "data"
-#  type: "HDF5Data"
-#  top: "position"
-#  top: "rgb_frames"
-#  hdf5_data_param {
-#    source: "examples/vgps/train_pose.txt"
-#    batch_size: 10
-#  }
-#  include: {
-#    phase: TEST
-#    stage: 'test-on-train'
-#  }
-#}
 
 layer {
   name: "demo_sample_concat"
@@ -96,7 +61,7 @@ layer {
   top: "enc1"
   param {
     lr_mult: 1
-    decay_mult: 1
+    decay_mult: 0
   }
   param {
     lr_mult: 2
@@ -128,7 +93,7 @@ layer {
   top: "enc2"
   param {
     lr_mult: 1
-    decay_mult: 1
+    decay_mult: 0
   }
   param {
     lr_mult: 2
@@ -160,7 +125,7 @@ layer {
   top: "enc_all"
   param {
     lr_mult: 1
-    decay_mult: 1
+    decay_mult: 0
   }
   param {
     lr_mult: 2
@@ -188,7 +153,7 @@ layer {
   top: "Ax"
   param {
     lr_mult: 1 # 1 for full cold start
-    decay_mult: 1
+    decay_mult: 0
   }
   param {
     lr_mult: 2 # 2 for full cold start
@@ -263,7 +228,7 @@ layer {
 layer {
   name: "zeros"
   type: "Power"
-  bottom: "Ax"
+  bottom: "sample_cost"
   top: "zeros"
   power_param {
     scale: 0
@@ -274,10 +239,10 @@ layer {
 layer {
   name: "reg_loss"
   type: "EuclideanLoss"
-  bottom: "Ax"
+  bottom: "sample_cost"
   bottom: "zeros"
   top: "reg_loss"
-  loss_weight: 1e-4
+  loss_weight: 1e-3
 }
 
 layer {
@@ -353,7 +318,6 @@ layer {
 }
 
 #### Start of confusion layers ####
-
 layer {
   name: "reshapeenc"
   bottom: "enc_all"
@@ -373,12 +337,12 @@ layer {
   top: "domain"
   param {
     name: "domain_w"
-    lr_mult: 1.0
-    decay_mult: 1
+    lr_mult: 4.0
+    decay_mult: 0
   }
   param {
     name: "domain_b"
-    lr_mult: 2.0
+    lr_mult: 8.0
     decay_mult: 0
   }
   inner_product_param {
@@ -400,7 +364,7 @@ layer {
   bottom: "domain"
   bottom: "domain_label"
   top: "domain_loss"
-  loss_weight: 0.5
+  loss_weight: 1.0
   include { phase: TRAIN }
 }
 layer {
@@ -421,7 +385,7 @@ layer {
   param {
     name: "domain_w"
     lr_mult: 0
-    decay_mult: 1
+    decay_mult: 0
   }
   param {
     name: "domain_b"
@@ -447,7 +411,7 @@ layer {
   bottom: "inverted_domain"
   bottom: "inverted_domain_label"
   top: "inverted_domain_loss"
-  loss_weight: 0.5
+  loss_weight: 1.0
   include { phase: TRAIN }
 }
 
