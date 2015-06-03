@@ -7,7 +7,7 @@ layer {
   memory_data_param {
     input_shapes {
       dim: 1
-      dim: 20  # T
+      dim: 25  # T
       dim: 96  # 32joint state+64fp
       dim: 1
     }
@@ -21,24 +21,26 @@ layer {
   top: "all_states"
   memory_data_param {
     input_shapes {
-      dim: 20 # T
+      dim: 25 # T
       dim: 32  # 32joint state+64fp
       dim: 1
       dim: 1
     }
   }
   include: {phase:FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   name: "image_data"
-  type: "ImageData"
-  top: "all_images"
-  image_data_param {
-    source: "img_database_temp/demo_ioc_images.txt"
-    batch_size: 20
+  type: "HDF5Data"
+  top: "sample_frames"
+  hdf5_data_param {
+    source: "img_database_temp/sample_ioc_images.txt"
+    batch_size: 25 # T
   }
   # batch_size: 100 # not sure where is better.
   include: {phase: FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   # Input is NxTxF
@@ -49,7 +51,7 @@ layer {
   memory_data_param {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
-      dim: 20  # T
+      dim: 25  # T
       dim: 96  # 64+32, dimension of phi
       dim: 1
     }
@@ -70,7 +72,7 @@ layer {
   memory_data_param {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
-      dim: 20  # T
+      dim: 25  # T
       dim: 96  # 64+32, dimension of phi
       dim: 1
     }
@@ -83,27 +85,6 @@ layer {
   }
   include: {phase: TRAIN}
 }
-# No images in training yet.
-#layer {
-#  name: "demo_img_data"
-#  type: "ImageData"
-#  top: "demo_images"
-#  image_data_param {
-#    source: "img_database_temp/demo_ioc_images.txt"
-#    batch_size: 1000  # Must be same as slice point and demo batch size*100
-#  }
-#  include: { phase: TRAIN }
-#}
-#layer {
-#  name: "sample_img_data"
-#  type: "ImageData"
-#  top: "sample_images"
-#  image_data_param {
-#    source: "img_database_temp/sample_ioc_images.txt"
-#    batch_size: 500  # Must be same as slice point and demo batch size*100
-#  }
-#  include: {phase: TRAIN}
-#}
 layer {
   name: "concat_states"
   type: "Concat"
@@ -121,7 +102,7 @@ layer {
 layer {
   name: "conv1/7x7_s2"
   type: "Convolution"
-  bottom: "all_images"
+  bottom: "sample_frames"
   top: "conv1"
   param {
     lr_mult: 1
@@ -145,18 +126,32 @@ layer {
     }
   }
   include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
+}
+layer {
+  name: "bn1"
+  type: "BatchNorm"
+  bottom: "conv1"
+  top: "conv1_bn"
+  batch_norm_param {
+    use_global_stats: false
+    moving_average_fraction: 0.5
+  }
+  include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   name: "relu1"
   type: "ReLU"
-  bottom: "conv1"
-  top: "conv1"
+  bottom: "conv1_bn"
+  top: "conv1_bn"
   include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   name: "conv2"
   type: "Convolution"
-  bottom: "conv1"
+  bottom: "conv1_bn"
   top: "conv2"
   param {
     lr_mult: 1
@@ -180,18 +175,34 @@ layer {
     }
   }
   include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
+}
+
+layer {
+  name: "bn2"
+  type: "BatchNorm"
+  bottom: "conv2"
+  top: "conv2_bn"
+  batch_norm_param {
+    use_global_stats: false
+    moving_average_fraction: 0.5
+  }
+  include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   name: "relu2"
   type: "ReLU"
-  bottom: "conv2"
-  top: "conv2"
+  bottom: "conv2_bn"
+  top: "conv2_bn"
   include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
 }
+
 layer {
   name: "conv3"
   type: "Convolution"
-  bottom: "conv2"
+  bottom: "conv2_bn"
   top: "conv3"
   param {
     lr_mult: 1
@@ -215,29 +226,44 @@ layer {
     }
   }
   include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
+}
+
+layer {
+  name: "bn3"
+  type: "BatchNorm"
+  bottom: "conv3"
+  top: "conv3_bn"
+  batch_norm_param {
+    use_global_stats: false
+    moving_average_fraction: 0.5
+  }
+  include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   name: "relu3"
   type: "ReLU"
-  bottom: "conv3"
-  top: "conv3"
+  bottom: "conv3_bn"
+  top: "conv3_bn"
   include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   name: "softmax"
   type: "SpatialSoftmax"
-  bottom: "conv3"
-  top: "conv3"
+  bottom: "conv3_bn"
+  top: "conv3_bn"
   spatial_softmax_param {
     engine: CAFFE
-    temperature: 1.0
   }
   include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   name: "fc_images"
   type: "InnerProduct"
-  bottom: "conv3"
+  bottom: "conv3_bn"
   top: "expected_xy"
   param {
     lr_mult: 0
@@ -262,6 +288,7 @@ layer {
     }
   }
   include: { phase: FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   name: "flatten_fp"
@@ -269,6 +296,7 @@ layer {
   bottom: "expected_xy"
   top: "flat_xy"
   include: {phase:FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   name: "flatten_as"
@@ -276,6 +304,7 @@ layer {
   bottom: "all_states"
   top: "flat_all_states"
   include: {phase:FORWARDA}
+  include: { phase: FORWARDB}
 }
 layer {
   name: "concat_features"
@@ -287,15 +316,137 @@ layer {
     axis: 1
   }
   include: {phase:FORWARDA}
+  include: { phase: FORWARDB}
+}
+layer {
+  name: "reshape_fp" #input is T*N x 2 x 32, want it to be NxTx64
+  type: "Reshape"
+  bottom: "all_cost_features"
+  top: "cost_features"
+  reshape_param {
+    shape {
+      dim: 1 # FORWARDB is always a single sample
+      dim: 25
+      dim: 96 # 32+64
+      dim: 1
+    }
+  }
+  include: { phase: FORWARDB}
 }
 ## END: FORWARDA NETWORK ##
 
 ## START: TEST NETWORK ##
+# 2 layer neural net
+layer {
+  name: "fc_enc1"
+  type: "InnerProduct"
+  bottom: "cost_features"
+  top: "enc1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: {phase:TEST}
+  include: {phase:TRAIN}
+  include: { phase: FORWARDB}
+}
+layer {
+  name: "relu1b"
+  type: "ReLU"
+  bottom: "enc1"
+  top: "enc1"
+  include: {phase:TEST}
+  include: {phase:TRAIN}
+  include: { phase: FORWARDB}
+}
+layer {
+  name: "fc_enc2"
+  type: "InnerProduct"
+  bottom: "enc1"
+  top: "enc2"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: {phase:TEST}
+  include: {phase:TRAIN}
+  include: { phase: FORWARDB}
+}
+layer {
+  name: "relu2b"
+  type: "ReLU"
+  bottom: "enc2"
+  top: "enc2"
+  include: {phase:TEST}
+  include: {phase:TRAIN}
+  include: { phase: FORWARDB}
+}
+layer {
+  name: "fc_enc3"
+  type: "InnerProduct"
+  bottom: "enc2"
+  top: "enc_all"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 100
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: {phase:TEST}
+  include: {phase:TRAIN}
+  include: { phase: FORWARDB}
+}
 # Affine cost layer
 layer {
   name: "fc1_affine"
   type: "InnerProduct"
-  bottom: "cost_features"
+  bottom: "enc_all"
   top: "Ax"
   param {
     lr_mult: 1 # 1 for full cold start
@@ -306,8 +457,8 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 50 # What should this be??
-    axis: -2  # Input is NxTxF
+    num_output: 100 # What should this be??
+    axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -347,7 +498,7 @@ layer {
   }
   inner_product_param {
     num_output: 1  # Output is 2x cost for every time step - NxT
-    axis: -1  # Input is NxTxF
+    axis: 2  # Input is NxTxF
     weight_filler {
       type: "constant"
       value: 1
@@ -406,7 +557,7 @@ layer {
   bottom: "Ax"
   bottom: "zeros"
   top: "reg_loss"
-  loss_weight: 1e-4
+  loss_weight: 5e-4
   include: {phase:TRAIN}
 }
 ## END: EXTRA TRAIN LAYERS ##
