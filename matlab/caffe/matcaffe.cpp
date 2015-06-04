@@ -717,13 +717,15 @@ static void set_weights_from_file(MEX_ARGS) {
 
 }
 
-// First arg is solver, second is initial weights string (optional).
-// second arg is actually base learning rate. Use set_weights to
+// First arg is solver,
+// second arg is actually base learning rate
+// Use set_weights to
 // set initial weights. third arg is num_iter.
+// fourth arg is prox_file of weights
 static void init_train(MEX_ARGS) {
-  if (nrhs != 2 && nrhs != 1 && nrhs != 3) {
+  if (nrhs != 2 && nrhs != 1 && nrhs != 3 && nrhs !=4) {
     ostringstream error_msg;
-    error_msg << "Only given " << nrhs << " arguments";
+    error_msg << "Given " << nrhs << " arguments";
     mex_error(error_msg.str());
   }
 
@@ -746,6 +748,11 @@ static void init_train(MEX_ARGS) {
     int max_iter = atoi(iter_str);
     solver_param.set_max_iter(max_iter);
     LOG(INFO) << "Setting max iter: " << max_iter;
+  }
+
+  if (nrhs >= 4) {
+    const char* prox_file = mxArrayToString(prhs[3]);
+    solver_param.set_prox_file(prox_file);
   }
 
   solver_.reset(GetSolver<float>(solver_param));
