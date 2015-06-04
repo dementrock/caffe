@@ -10,7 +10,8 @@ display: 100
 max_iter: 8000  # 8000 iterations for cold starting
 momentum: 0.9
 #weight_decay: 0.005
-weight_decay: 0
+weight_decay: 0.005
+regularization_type: "L1"
 snapshot: 100000
 snapshot_prefix: "matnet7"
 solver_mode: GPU
