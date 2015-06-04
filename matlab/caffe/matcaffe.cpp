@@ -831,14 +831,16 @@ static void init_forwarda_imgdata(MEX_ARGS) {
   NetParameter net_param;
   ReadNetParamsFromTextFileOrDie(string(param_file), &net_param);
 
-  // Alter batch size of memory data layer in net_param
+  LOG(INFO) << "init forwarda";
   if (nrhs >= 2) {
     const char* source_data_string = mxArrayToString(prhs[1]);
     // int batch_size = atoi(batch_size_string);
 
-    for (int i = 0; i < net_param.layers_size(); ++i) {
+    LOG(INFO) << "Setting layers";
+    for (int i = 0; i < net_param.layer_size(); ++i) {
       const LayerParameter& layer_param = net_param.layer(i);
       if (layer_param.type() != "HDF5Data") continue;
+      LOG(INFO) << "Setting layer " << i << " to have source: " << source_data_string;
       HDF5DataParameter* imgdata_param = net_param.mutable_layer(i)->mutable_hdf5_data_param();
       // Change batch size of all blobs in the memory data layer parameter
       imgdata_param->set_source(source_data_string);
@@ -934,6 +936,70 @@ static void init_forwarda_batch(MEX_ARGS) {
 
   init_key = random();  // NOLINT(caffe/random_fn)
 
+  if (nlhs == 1) {
+    plhs[0] = mxCreateDoubleScalar(init_key);
+  }
+}
+
+// first arg is prototxt file, 2nd optional arg is source data txt,
+// third optional arg is batch size for images and other data layers
+// third optional arg is NOT model weights file - use set_weights
+static void init_forwardb_imgdata(MEX_ARGS) {
+  if (nrhs != 2 && nrhs != 1 && nrhs != 3) {
+    ostringstream error_msg;
+    error_msg << "Only given " << nrhs << " arguments";
+    mex_error(error_msg.str());
+  }
+
+  char* param_file = mxArrayToString(prhs[0]);
+  if (solver_) {
+    solver_.reset();
+  }
+  NetParameter net_param;
+  ReadNetParamsFromTextFileOrDie(string(param_file), &net_param);
+
+  // Alter batch size of memory data layer in net_param
+  if (nrhs >= 2) {
+    const char* source_data_string = mxArrayToString(prhs[1]);
+    // int batch_size = atoi(batch_size_string);
+
+    for (int i = 0; i < net_param.layer_size(); ++i) {
+      const LayerParameter& layer_param = net_param.layer(i);
+      if (layer_param.type() != "HDF5Data") continue;
+      LOG(INFO) << "Setting layer " << i << " to have source: " << source_data_string;
+      HDF5DataParameter* imgdata_param = net_param.mutable_layer(i)->mutable_hdf5_data_param();
+      // Change batch size of all blobs in the memory data layer parameter
+      imgdata_param->set_source(source_data_string);
+    }
+  }
+
+  // Alter batch size of memory data layer in net_param
+  if (nrhs >= 3) {
+    const char* batch_size_string = mxArrayToString(prhs[2]);
+    int batch_size = atoi(batch_size_string);
+
+    for (int i = 0; i < net_param.layers_size(); ++i) {
+      const LayerParameter& layer_param = net_param.layer(i);
+      if (layer_param.type() == "ImageData") {
+        ImageDataParameter* imgdata_param = net_param.mutable_layer(i)->mutable_image_data_param();
+        imgdata_param->set_batch_size(batch_size);
+      } else if (layer_param.type() == "MemoryData") {
+          MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
+          // Change batch size of all blobs in the memory data layer parameter
+          for (int blob_i = 0; blob_i < mem_param->input_shapes_size(); ++blob_i) {
+            mem_param->mutable_input_shapes(blob_i)->set_dim(0, batch_size);
+          }
+      }
+    }
+  }
+
+
+  NetState* net_state = net_param.mutable_state();
+  net_state->set_phase(FORWARDB);
+  net_.reset(new Net<float>(net_param));
+
+  mxFree(param_file);
+  init_key = random();  // NOLINT(caffe/random_fn)
   if (nlhs == 1) {
     plhs[0] = mxCreateDoubleScalar(init_key);
   }
@@ -1212,6 +1278,7 @@ static handler_registry handlers[] = {
   { "init_test_batch",    init_test_batch},
   { "init_forwarda_batch",init_forwarda_batch},
   { "init_forwarda_imgdata",init_forwarda_imgdata},
+  { "init_forwardb_imgdata",init_forwardb_imgdata},
   { "init_forwardb_batch",init_forwardb_batch},
   { "init_train",         init_train      },
   { "is_initialized",     is_initialized  },
