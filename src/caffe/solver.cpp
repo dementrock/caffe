@@ -439,6 +439,10 @@ Dtype SGDSolver<Dtype>::GetLearningRate() {
 
 template <typename Dtype>
 void SGDSolver<Dtype>::PreSolve() {
+
+  if (this->param_.has_prox_file() && 0==this->param_.regularization_type().compare("prox")) {
+      LOG(WARNING) << "Prox file not specified with prox regularization type";
+  }
   // Initialize the history
   if (this->param_.has_prox_file()) {
     this->net_->CopyTrainedLayersFrom(this->param_.prox_file());
@@ -540,7 +544,7 @@ void SGDSolver<Dtype>::ComputeUpdateValue() {
               local_decay,
               temp_[param_id]->cpu_data(),
               net_params[param_id]->mutable_cpu_diff());
-        } else if (regularization_type == "prox") {
+        } else if (regularization_type == "prox" && this->param_.has_prox_file()) {
           caffe_sub(net_params[param_id]->count(),
               net_params[param_id]->cpu_data(),
               other_params_[param_id]->cpu_data(),
@@ -549,6 +553,8 @@ void SGDSolver<Dtype>::ComputeUpdateValue() {
               local_decay,
               temp_[param_id]->cpu_data(),
               net_params[param_id]->mutable_cpu_diff());
+        } else if (regularization_type == "prox") {
+          DLOG(INFO) << "no prox file set";
         } else {
           LOG(FATAL) << "Unknown regularization type: " << regularization_type;
         }
@@ -586,7 +592,7 @@ void SGDSolver<Dtype>::ComputeUpdateValue() {
               local_decay,
               temp_[param_id]->gpu_data(),
               net_params[param_id]->mutable_gpu_diff());
-        } else if (regularization_type == "prox") {
+        } else if (regularization_type == "prox" && this->param_.has_prox_file()) {
            caffe_gpu_sub(net_params[param_id]->count(),
               net_params[param_id]->gpu_data(),
               other_params_[param_id]->gpu_data(),
@@ -595,6 +601,8 @@ void SGDSolver<Dtype>::ComputeUpdateValue() {
               local_decay,
               temp_[param_id]->gpu_data(),
               net_params[param_id]->mutable_gpu_diff());
+        } else if (regularization_type == "prox") {
+          DLOG(INFO) << "no prox file set";
         } else {
           LOG(FATAL) << "Unknown regularization type: " << regularization_type;
         }
