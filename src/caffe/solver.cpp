@@ -440,15 +440,40 @@ Dtype SGDSolver<Dtype>::GetLearningRate() {
 template <typename Dtype>
 void SGDSolver<Dtype>::PreSolve() {
   // Initialize the history
+  if (this->param_.has_prox_file()) {
+    this->net_->CopyTrainedLayersFrom(this->param_.prox_file());
+  }
   const vector<shared_ptr<Blob<Dtype> > >& net_params = this->net_->params();
   history_.clear();
   update_.clear();
   temp_.clear();
+  other_params_.clear();
   for (int i = 0; i < net_params.size(); ++i) {
     const vector<int>& shape = net_params[i]->shape();
     history_.push_back(shared_ptr<Blob<Dtype> >(new Blob<Dtype>(shape)));
     update_.push_back(shared_ptr<Blob<Dtype> >(new Blob<Dtype>(shape)));
     temp_.push_back(shared_ptr<Blob<Dtype> >(new Blob<Dtype>(shape)));
+    other_params_.push_back(shared_ptr<Blob<Dtype> >(new Blob<Dtype>(shape)));
+    if (this->param_.has_prox_file()) {
+      switch (Caffe::mode()) {
+      case Caffe::CPU:
+        caffe_copy(net_params[i]->count(),
+            net_params[i]->cpu_data(),
+            other_params_[i]->mutable_cpu_data());
+        break;
+      case Caffe::GPU:
+#ifndef CPU_ONLY
+        caffe_copy(net_params[i]->count(),
+            net_params[i]->gpu_data(),
+            other_params_[i]->mutable_gpu_data());
+#else
+        NO_GPU;
+#endif
+        break;
+      default:
+        LOG(FATAL) << "Unknown caffe mode: " << Caffe::mode();
+      }
+    }
   }
 }
 
@@ -515,6 +540,15 @@ void SGDSolver<Dtype>::ComputeUpdateValue() {
               local_decay,
               temp_[param_id]->cpu_data(),
               net_params[param_id]->mutable_cpu_diff());
+        } else if (regularization_type == "prox") {
+          caffe_sub(net_params[param_id]->count(),
+              net_params[param_id]->cpu_data(),
+              other_params_[param_id]->cpu_data(),
+              temp_[param_id]->mutable_cpu_data());
+          caffe_axpy(net_params[param_id]->count(),
+              local_decay,
+              temp_[param_id]->cpu_data(),
+              net_params[param_id]->mutable_cpu_diff());
         } else {
           LOG(FATAL) << "Unknown regularization type: " << regularization_type;
         }
@@ -547,6 +581,15 @@ void SGDSolver<Dtype>::ComputeUpdateValue() {
         } else if (regularization_type == "L1") {
           caffe_gpu_sign(net_params[param_id]->count(),
               net_params[param_id]->gpu_data(),
+              temp_[param_id]->mutable_gpu_data());
+          caffe_gpu_axpy(net_params[param_id]->count(),
+              local_decay,
+              temp_[param_id]->gpu_data(),
+              net_params[param_id]->mutable_gpu_diff());
+        } else if (regularization_type == "prox") {
+           caffe_gpu_sub(net_params[param_id]->count(),
+              net_params[param_id]->gpu_data(),
+              other_params_[param_id]->gpu_data(),
               temp_[param_id]->mutable_gpu_data());
           caffe_gpu_axpy(net_params[param_id]->count(),
               local_decay,
