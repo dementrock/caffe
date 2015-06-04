@@ -1,0 +1,681 @@
+name: "JointAndImageStateRegressionNet"
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "demo_rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/train_demo.txt"
+    batch_size: 20
+  }
+  include: { phase: TRAIN }
+}
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "demo_rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/val_demo.txt"
+    batch_size: 5
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-val'
+  }
+}
+
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "demo_rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/train_demo.txt"
+    batch_size: 5
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-train'
+  }
+}
+
+# Sample data
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "samp_rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/train_sample.txt"
+    batch_size: 20
+  }
+  include: { phase: TRAIN }
+}
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "samp_rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/val_sample.txt"
+    batch_size: 5
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-val'
+  }
+}
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "samp_rgb_frames"
+  hdf5_data_param {
+    source: "examples/vgps/train_sample.txt"
+    batch_size: 5
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-train'
+  }
+}
+layer {
+  name: "data"
+  type: "Concat"
+  bottom: "demo_rgb_frames"
+  bottom: "samp_rgb_frames"
+  top: "rgb_frames"
+  concat_param {
+    concat_dim: 0
+  }
+}
+
+# Image Processing Layers
+layer {
+  name: "conv1/7x7_s2"
+  type: "Convolution"
+  bottom: "rgb_frames"
+  top: "conv1"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 7
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "conv1"
+  top: "conv1"
+}
+layer {
+  bottom: "conv1"
+  top: "conv1_bn"
+  name: "conv1_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TRAIN}
+}
+layer {
+  bottom: "conv1"
+  top: "conv1_bn"
+  name: "conv1_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TEST}
+}
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "conv1_bn"
+  top: "conv2"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "conv2"
+  top: "conv2"
+}
+layer {
+  bottom: "conv2"
+  top: "conv2_bn"
+  name: "conv2_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TRAIN}
+}
+layer {
+  bottom: "conv2"
+  top: "conv2_bn"
+  name: "conv2_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TEST}
+}
+layer {
+  name: "conv3"
+  type: "Convolution"
+  bottom: "conv2_bn"
+  top: "conv3"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu3"
+  type: "ReLU"
+  bottom: "conv3"
+  top: "conv3"
+}
+layer {
+  bottom: "conv3"
+  top: "conv3_bn"
+  name: "conv3_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TRAIN}
+}
+layer {
+  bottom: "conv3"
+  top: "conv3_bn"
+  name: "conv3_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TEST}
+}
+layer {
+  name: "softmax"
+  type: "SpatialSoftmax"
+  bottom: "conv3_bn"
+  top: "conv3_bn"
+  spatial_softmax_param {
+    engine: CAFFE
+    temperature: 1.0
+#    dimension: "spatial"
+  }
+}
+layer {
+  name: "fc_images"
+  type: "InnerProduct"
+  bottom: "conv3_bn"
+  top: "featurepoint_xy"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 2  # dimensionality will actually be 2*num_channels
+    axis: -2
+    weight_filler {
+      type: "expectation"
+      expectation_option: "xy"
+      width: 109
+      height: 109
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+#layer {
+#  name: "dropout_fp"
+#  type: "Dropout"
+#  bottom: "featurepoint_xy"
+#  top: "featurepoint_xy"
+#  dropout_param {
+#    dropout_ratio: 0.3
+#  }
+#}
+layer {
+  name: "fc1_a"
+  type: "InnerProduct"
+  bottom: "featurepoint_xy"
+  top: "rreconstruction"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 3600
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "fc1_ag"
+  type: "InnerProduct"
+  bottom: "featurepoint_xy"
+  top: "greconstruction"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 3600
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "fc1_ab"
+  type: "InnerProduct"
+  bottom: "featurepoint_xy"
+  top: "breconstruction"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 3600
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "split_rgb"
+  type: "Slice"
+  bottom: "rgb_frames"
+  top: "r_frames"
+  top: "g_frames"
+  top: "b_frames"
+  slice_param {
+    axis: 1
+  }
+}
+layer {
+  name: "downsampleg"
+  type: "Convolution"
+  bottom: "g_frames"
+  top: "gdownsampled"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 1
+    kernel_size: 4
+    stride: 4
+    weight_filler {
+      type: "constant"
+      value: 0.005 # 1/64/3
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "downsampleb"
+  type: "Convolution"
+  bottom: "b_frames"
+  top: "bdownsampled"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 1
+    kernel_size: 4
+    stride: 4
+    weight_filler {
+      type: "constant"
+      value: 0.005 # 1/64/3
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "downsampler"
+  type: "Convolution"
+  bottom: "r_frames"
+  top: "rdownsampled"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 1
+    kernel_size: 4
+    stride: 4
+    weight_filler {
+      type: "constant"
+      value: 0.005 # 1/64/3
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+#layer {
+#  name: "imagemean"
+#  type: "InnerProduct"
+#  bottom: "reconstruction"
+#  top: "biases"
+#  param {
+#    lr_mult: 0
+#    decay_mult: 0
+#  }
+#  param {
+#    lr_mult: 1
+#    decay_mult: 0
+#  }
+#  inner_product_param {
+#    num_output: 900
+#    weight_filler {
+#      type: "constant"
+#      value: 0
+#    }
+#    bias_filler {
+#      type: "constant"
+#      value: 20
+#    }
+#  }
+#}
+#
+#layer {
+#  name: "addmean"
+#  type: "Eltwise"
+#  bottom: "biases"
+#  bottom: "reconstruction"
+#  top: "final_reconstruction"
+#}
+#layer {
+  #name: "flatten_down"
+  #type: "Flatten"
+  #bottom: "downsampled"
+  #top: "downsampled"
+#}
+
+layer {
+  name: "loss"
+  type: "EuclideanLoss"
+  bottom: "rreconstruction"
+  bottom: "rdownsampled"
+  top: "reconstruction_error_r"
+  loss_weight: 1
+}
+layer {
+  name: "loss"
+  type: "EuclideanLoss"
+  bottom: "greconstruction"
+  bottom: "gdownsampled"
+  top: "euclidean_errorg"
+  loss_weight: 0
+}
+layer {
+  name: "loss"
+  type: "EuclideanLoss"
+  bottom: "breconstruction"
+  bottom: "bdownsampled"
+  top: "euclidean_errorb"
+  loss_weight: 0
+}
+
+
+### Domiain label handling ###
+layer {
+  name: "source_domain_label"
+  type: "DummyData"
+  top: "source_domain_label"
+  include {
+    phase: TRAIN
+  }
+  dummy_data_param {
+    data_filler {
+      type: "constant"
+      value: 0
+    }
+    shape {
+      dim: 20
+      dim: 1
+    }
+  }
+}
+layer {
+  name: "target_domain_label"
+  type: "DummyData"
+  top: "target_domain_label"
+  include {
+    phase: TRAIN
+  }
+  dummy_data_param {
+    data_filler {
+      type: "constant"
+      value: 1
+    }
+    shape {
+      dim: 20
+      dim: 1
+    }
+  }
+}
+layer {
+  name: "domain_label"
+  type: "Concat"
+  bottom: "source_domain_label"
+  bottom: "target_domain_label"
+  top: "domain_label"
+  concat_param {
+    concat_dim: 0
+  }
+  include { phase: TRAIN }
+}
+layer {
+  name: "inverted_domain_label"
+  type: "Concat"
+  bottom: "target_domain_label"
+  bottom: "source_domain_label"
+  top: "inverted_domain_label"
+  concat_param {
+    concat_dim: 0
+  }
+  include { phase: TRAIN }
+}
+
+
+#### Start of confusion layers ####
+layer {
+  name: "domain_classifier"
+  type: "InnerProduct"
+  bottom: "featurepoint_xy"
+  top: "domain"
+  param {
+    name: "domain_w"
+    lr_mult: 1.0
+    decay_mult: 1
+  }
+  param {
+    name: "domain_b"
+    lr_mult: 2.0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 2
+    weight_filler {
+      type: "gaussian"
+      std: 0.005
+    }
+    bias_filler {
+      type: "constant"
+      value: 1
+    }
+  }
+  include { phase: TRAIN }
+}
+layer {
+  name: "domain_loss"
+  type: "SoftmaxWithLoss"
+  bottom: "domain"
+  bottom: "domain_label"
+  top: "domain_loss"
+  loss_weight: 0.1
+  include { phase: TRAIN }
+}
+layer {
+  name: "domain_acc"
+  type: "Accuracy"
+  bottom: "domain"
+  bottom: "domain_label"
+  top: "domain_acc"
+  include {
+    phase: TRAIN
+  }
+}
+layer {
+  name: "inverted_domain_classifier"
+  type: "InnerProduct"
+  bottom: "featurepoint_xy"
+  top: "inverted_domain"
+  param {
+    name: "domain_w"
+    lr_mult: 0
+    decay_mult: 1
+  }
+  param {
+    name: "domain_b"
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 2
+    weight_filler {
+      type: "gaussian"
+      std: 0.005
+    }
+    bias_filler {
+      type: "constant"
+      value: 1
+    }
+  }
+  include { phase: TRAIN }
+}
+layer {
+  name: "inverted_domain_loss"
+  type: "SoftmaxWithLoss"
+  bottom: "inverted_domain"
+  bottom: "inverted_domain_label"
+  top: "inverted_domain_loss"
+  loss_weight: 0.1
+  include { phase: TRAIN }
+}
