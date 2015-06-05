@@ -1,0 +1,380 @@
+name: "JointAndImageStateRegressionNet"
+layer {
+  name: "data"
+  type: "HDF5Data"
+  #top: "position"
+  top: "demo_rgb_frames"
+  #top: "rgb_frames+1"
+  hdf5_data_param {
+    source: "examples/vgps/train_demo.txt"
+    batch_size: 25
+  }
+  include: { phase: TRAIN }
+}
+layer {
+  name: "data"
+  type: "HDF5Data"
+  #top: "position"
+  top: "demo_rgb_frames"
+  #top: "rgb_frames+1"
+  hdf5_data_param {
+    source: "examples/vgps/val_demo.txt"
+    batch_size: 40
+  }
+  include: {
+    phase: TEST
+    #stage: 'test-on-val'
+  }
+}
+
+layer {
+  name: "data"
+  type: "HDF5Data"
+  #top: "position"
+  top: "demo_rgb_frames"
+  #top: "rgb_frames+1"
+  hdf5_data_param {
+    source: "examples/vgps/train_demo.txt"
+    batch_size: 5
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-train'
+  }
+}
+
+#layer {
+#  name: "lrn"
+#  type: "LRN"
+#  bottom: "demo+rgb_frames"
+#  top: "lrn_frames"
+#  lrn_param {
+#    norm_region: WITHIN_CHANNEL
+#    alpha: 5e-05
+#    beta: 0.75
+#  }
+#}
+
+# Image Processing Layers
+layer {
+  name: "conv1/7x7_s2"
+  type: "Convolution"
+  bottom: "demo_rgb_frames"
+  top: "conv1"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 7
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "conv1"
+  top: "conv1"
+}
+layer {
+  bottom: "conv1"
+  top: "conv1_bn"
+  name: "conv1_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TRAIN}
+}
+layer {
+  bottom: "conv1"
+  top: "conv1_bn"
+  name: "conv1_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TEST}
+}
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "conv1_bn"
+  top: "conv2"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "conv2"
+  top: "conv2"
+}
+layer {
+  bottom: "conv2"
+  top: "conv2_bn"
+  name: "conv2_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TRAIN}
+}
+layer {
+  bottom: "conv2"
+  top: "conv2_bn"
+  name: "conv2_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TEST}
+}
+layer {
+  name: "conv3"
+  type: "Convolution"
+  bottom: "conv2_bn"
+  top: "conv3"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu3"
+  type: "ReLU"
+  bottom: "conv3"
+  top: "conv3"
+}
+layer {
+  bottom: "conv3"
+  top: "conv3_bn"
+  name: "conv3_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TRAIN}
+}
+layer {
+  bottom: "conv3"
+  top: "conv3_bn"
+  name: "conv3_bn"
+  type: "BatchNorm"
+  batch_norm_param {
+    use_global_stats : false
+    moving_average_fraction : 0.5
+  }
+  include: {phase: TEST}
+}
+layer {
+  name: "softmax"
+  type: "SpatialSoftmax"
+  bottom: "conv3_bn"
+  top: "conv3_bn"
+  spatial_softmax_param {
+    engine: CAFFE
+    temperature: 1.0
+#    dimension: "spatial"
+  }
+}
+layer {
+  name: "fc_images"
+  type: "InnerProduct"
+  bottom: "conv3_bn"
+  top: "featurepoint_xy"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 2  # dimensionality will actually be 2*num_channels
+    axis: -2
+    weight_filler {
+      type: "expectation"
+      expectation_option: "xy"
+      width: 109
+      height: 109
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "fc1_a"
+  type: "InnerProduct"
+  bottom: "featurepoint_xy"
+  top: "reconstruction"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 3600
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "downsample"
+  type: "Convolution"
+  bottom: "demo_rgb_frames"
+  top: "downsampled"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 1
+    kernel_size: 4
+    stride: 4
+    weight_filler {
+      type: "constant"
+      value: 0.005 # 1/64/3
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+#layer {
+#  name: "imagemean"
+#  type: "InnerProduct"
+#  bottom: "reconstruction"
+#  top: "biases"
+#  param {
+#    lr_mult: 0
+#    decay_mult: 0
+#  }
+#  param {
+#    lr_mult: 1
+#    decay_mult: 0
+#  }
+#  inner_product_param {
+#    num_output: 900
+#    weight_filler {
+#      type: "constant"
+#      value: 0
+#    }
+#    bias_filler {
+#      type: "constant"
+#      value: 20
+#    }
+#  }
+#}
+#
+#layer {
+#  name: "addmean"
+#  type: "Eltwise"
+#  bottom: "biases"
+#  bottom: "reconstruction"
+#  top: "final_reconstruction"
+#}
+layer {
+  name: "flatten_down"
+  type: "Flatten"
+  bottom: "downsampled"
+  top: "downsampled"
+}
+
+layer {
+  name: "loss"
+  type: "EuclideanLoss"
+  bottom: "reconstruction"
+  bottom: "downsampled"
+  top: "euclidean_error"
+  loss_weight: 1
+}
+
+layer {
+  name: "output_lrn"
+  type: "HDF5Output"
+  hdf5_output_param {
+    file_name: "grasp_autoencoder_result.h5"
+  }
+  bottom: "downsampled"
+  bottom: "reconstruction"
+  bottom: "demo_rgb_frames"
+  bottom: "featurepoint_xy"
+  include: {
+    phase: TEST
+  }
+}
+
