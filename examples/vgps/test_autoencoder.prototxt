@@ -3,7 +3,7 @@ layer {
   name: "data"
   type: "HDF5Data"
   #top: "position"
-  top: "demo_rgb_frames"
+  top: "rgb_frames"
   #top: "rgb_frames+1"
   hdf5_data_param {
     source: "examples/vgps/train_demo.txt"
@@ -15,7 +15,7 @@ layer {
   name: "data"
   type: "HDF5Data"
   #top: "position"
-  top: "demo_rgb_frames"
+  top: "rgb_frames"
   #top: "rgb_frames+1"
   hdf5_data_param {
     source: "examples/vgps/val_demo.txt"
@@ -31,7 +31,7 @@ layer {
   name: "data"
   type: "HDF5Data"
   #top: "position"
-  top: "demo_rgb_frames"
+  top: "rgb_frames"
   #top: "rgb_frames+1"
   hdf5_data_param {
     source: "examples/vgps/train_demo.txt"
@@ -59,7 +59,7 @@ layer {
 layer {
   name: "conv1/7x7_s2"
   type: "Convolution"
-  bottom: "demo_rgb_frames"
+  bottom: "rgb_frames"
   top: "conv1"
   param {
     lr_mult: 1
@@ -290,7 +290,7 @@ layer {
 layer {
   name: "downsample"
   type: "Convolution"
-  bottom: "demo_rgb_frames"
+  bottom: "rgb_frames"
   top: "downsampled"
   param {
     lr_mult: 0
@@ -306,7 +306,7 @@ layer {
     stride: 4
     weight_filler {
       type: "constant"
-      value: 0.005 # 1/64/3
+      value: 0.00005 # 1/64/3/100
     }
     bias_filler {
       type: "constant"
@@ -371,7 +371,7 @@ layer {
   }
   bottom: "downsampled"
   bottom: "reconstruction"
-  bottom: "demo_rgb_frames"
+  bottom: "rgb_frames"
   bottom: "featurepoint_xy"
   include: {
     phase: TEST
