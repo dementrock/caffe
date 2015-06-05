@@ -1,0 +1,1 @@
+../caffe/examples/vgps/data/val_demotrial_move.h5

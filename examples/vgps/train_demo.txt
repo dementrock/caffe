@@ -1,0 +1,1 @@
+../caffe/examples/vgps/data/train_demotrial_move.h5
