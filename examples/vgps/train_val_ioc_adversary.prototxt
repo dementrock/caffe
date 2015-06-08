@@ -228,7 +228,7 @@ layer {
 layer {
   name: "zeros"
   type: "Power"
-  bottom: "sample_cost"
+  bottom: "Ax"
   top: "zeros"
   power_param {
     scale: 0
@@ -239,10 +239,10 @@ layer {
 layer {
   name: "reg_loss"
   type: "EuclideanLoss"
-  bottom: "sample_cost"
+  bottom: "Ax"
   bottom: "zeros"
   top: "reg_loss"
-  loss_weight: 1e-3
+  loss_weight: 1e-4
 }
 
 layer {
@@ -364,7 +364,8 @@ layer {
   bottom: "domain"
   bottom: "domain_label"
   top: "domain_loss"
-  loss_weight: 1.0
+  #loss_weight: 0.0
+  loss_weight: 100000.0
   include { phase: TRAIN }
 }
 layer {
@@ -411,7 +412,8 @@ layer {
   bottom: "inverted_domain"
   bottom: "inverted_domain_label"
   top: "inverted_domain_loss"
-  loss_weight: 1.0
+  loss_weight: 100000.0
+  #loss_weight: 0.0
   include { phase: TRAIN }
 }
 
