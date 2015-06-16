@@ -2,28 +2,13 @@ name: "JointAndImageStateRegressionNet"
 layer {
   name: "data"
   type: "HDF5Data"
-  #top: "position"
   top: "rgb_frames"
-  #top: "rgb_frames+1"
-  hdf5_data_param {
-    source: "examples/vgps/train_demo.txt"
-    batch_size: 25
-  }
-  include: { phase: TRAIN }
-}
-layer {
-  name: "data"
-  type: "HDF5Data"
-  #top: "position"
-  top: "rgb_frames"
-  #top: "rgb_frames+1"
   hdf5_data_param {
     source: "examples/vgps/val_demo.txt"
-    batch_size: 40
+    batch_size: 25
   }
   include: {
     phase: TEST
-    #stage: 'test-on-val'
   }
 }
 
@@ -42,18 +27,6 @@ layer {
     stage: 'test-on-train'
   }
 }
-
-#layer {
-#  name: "lrn"
-#  type: "LRN"
-#  bottom: "demo+rgb_frames"
-#  top: "lrn_frames"
-#  lrn_param {
-#    norm_region: WITHIN_CHANNEL
-#    alpha: 5e-05
-#    beta: 0.75
-#  }
-#}
 
 # Image Processing Layers
 layer {
@@ -106,7 +79,7 @@ layer {
   name: "conv1_bn"
   type: "BatchNorm"
   batch_norm_param {
-    use_global_stats : false
+    use_global_stats : true
     moving_average_fraction : 0.5
   }
   include: {phase: TEST}
@@ -161,7 +134,7 @@ layer {
   name: "conv2_bn"
   type: "BatchNorm"
   batch_norm_param {
-    use_global_stats : false
+    use_global_stats : true
     moving_average_fraction : 0.5
   }
   include: {phase: TEST}
@@ -180,7 +153,7 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 32
+    num_output: 16
     kernel_size: 5
     stride: 1
     weight_filler {
@@ -216,7 +189,7 @@ layer {
   name: "conv3_bn"
   type: "BatchNorm"
   batch_norm_param {
-    use_global_stats : false
+    use_global_stats : true
     moving_average_fraction : 0.5
   }
   include: {phase: TEST}
@@ -367,7 +340,7 @@ layer {
   name: "output_lrn"
   type: "HDF5Output"
   hdf5_output_param {
-    file_name: "grasp_autoencoder_result.h5"
+    file_name: "movedata_autoencoder_result.h5"
   }
   bottom: "downsampled"
   bottom: "reconstruction"
