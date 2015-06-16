@@ -1,20 +1,20 @@
-net: "examples/vgps/train_val_autoencoder.prototxt"
+net: "examples/vgps/train_val_autoencoder_feat.prototxt"
 solver_type: SGD
 test_state: { stage: 'test-on-val' }
-test_iter: 180 # normally 20
+test_iter: 50 # normally 20
 test_state: { stage: 'test-on-train' }
-test_iter: 200 # normally 180
-test_interval: 500
-base_lr: 0.08
+test_iter: 450 # normally 180
+test_interval: 100
+base_lr: 0.01
 lr_policy: "multistep"
 gamma: 0.1
-stepvalue: 500
 stepvalue: 2000
+stepvalue: 5000
 stepvalue: 8000
 display: 100
-max_iter: 10000
+max_iter: 1000
 momentum: 0.9
 weight_decay: 0.005 # normally 0.005
 snapshot: 1000
-snapshot_prefix: "examples/vgps/snapshot/demosample_autoencoder_conv1image"
+snapshot_prefix: "examples/vgps/snapshot/demo_autoencoder_feat"
 solver_mode: GPU

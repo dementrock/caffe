@@ -62,11 +62,11 @@ layer {
   bottom: "rgb_frames"
   top: "conv1"
   param {
-    lr_mult: 1
-    decay_mult: 2
+    lr_mult: 0 #1
+    decay_mult: 0
   }
   param {
-    lr_mult: 2
+    lr_mult: 0 #2
     decay_mult: 0
   }
   convolution_param {
