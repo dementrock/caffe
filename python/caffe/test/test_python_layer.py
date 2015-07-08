@@ -1,6 +1,7 @@
 import unittest
 import tempfile
 import os
+import six
 
 import caffe
 
@@ -29,7 +30,7 @@ class ExceptionLayer(caffe.Layer):
 
 
 def python_net_file():
-    with tempfile.NamedTemporaryFile(delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
         f.write("""name: 'pythonnet' force_backward: true
         input: 'data' input_shape { dim: 10 dim: 9 dim: 8 }
         layer { type: 'Python' name: 'one' bottom: 'data' top: 'one'
@@ -75,7 +76,7 @@ class TestPythonLayer(unittest.TestCase):
         s = 4
         self.net.blobs['data'].reshape(s, s, s, s)
         self.net.forward()
-        for blob in self.net.blobs.itervalues():
+        for blob in six.itervalues(self.net.blobs):
             for d in blob.data.shape:
                 self.assertEqual(s, d)
 
