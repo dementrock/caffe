@@ -1,29 +1,115 @@
 name: "JointAndImageStateRegressionNet"
-layers {
+layer {
   name: "data_in"
-  type: MEMORY_DATA
+  type: "MemoryData"
+  top: "rgb_input"
+  top: "joint_input"
+  top: "action_input"
+  top: "prec_input"
+  memory_data_param {
+    input_shapes {
+      dim: 50 # batch size, must be same as slice point
+      dim: 3 # T
+      dim: 240
+      dim: 240
+     }
+    input_shapes {
+      dim: 50 # batch size, must be same as slice point
+      dim: 39 # T
+      dim: 1
+      dim: 1
+     }
+    input_shapes {
+      dim: 50 # batch size, must be same as slice point
+      dim: 7 # T
+      dim: 1 # dimension of phi
+      dim: 1
+     }
+    input_shapes {
+      dim: 50 # batch size, must be same as slice point
+      dim: 7 # T
+      dim: 7 # dimension of phi
+      dim: 1
+     }
+  }
+  include: { phase: TRAIN }
+}
+
+layer {
+  name: "data_in"
+  type: "MemoryData"
+  top: "rgb_input"
+  top: "joint_input"
+  memory_data_param {
+    input_shapes {
+      dim: 1 # batch size, must be same as slice point
+      dim: 3 # T
+      dim: 240 # dimension of phi
+      dim: 240
+     }
+    input_shapes {
+      dim: 1
+      dim: 39
+      dim: 1
+      dim: 1
+    }
+  }
+  include: {phase: TEST}
+}
+
+layer {
+  name: "data_in"
+  type: "MemoryData"
   top: "rgb_input"
   memory_data_param {
-    batch_size: 1
-    channels1: 3
-    width1: 240
-    height1: 240
+    input_shapes {
+      dim: 1 # batch size, must be same as slice point
+      dim: 3 # T
+      dim: 240 # dimension of phi
+      dim: 240
+     }
   }
+  include: { phase: FORWARDA }
+}
+layer {
+  name: "data_in"
+  type: "MemoryData"
+  top: "flat_image_features"
+  top: "joint_input"
+  memory_data_param {
+    input_shapes {
+      dim: 1 # batch size, must be same as slice point
+      dim: 64 # T
+      dim: 1
+      dim: 1
+     }
+    input_shapes {
+      dim: 1 # batch size, must be same as slice point
+      dim: 39
+      dim: 1
+      dim: 1 
+   }
+  }
+  include: { phase: FORWARDB }
 }
 
 # Image Processing Layers
-layers {
-  name: "conv1"
-  type: CONVOLUTION
+layer {
+  name: "conv1/7x7_s2"
+  type: "Convolution"
   bottom: "rgb_input"
   top: "conv1"
-  blobs_lr: 1
-  blobs_lr: 2
-  weight_decay: 0
-  weight_decay: 0
+  param {
+    lr_mult: 0.2
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0.4
+    decay_mult: 0
+  }
   convolution_param {
-    num_output: 32
-    kernel_size: 11
+    num_output: 64
+    kernel_size: 7
     stride: 2
     weight_filler {
       type: "gaussian"
@@ -34,22 +120,30 @@ layers {
       value: 0
     }
   }
+  exclude: { phase: FORWARDB }
 }
-layers {
+
+layer {
   name: "relu1"
-  type: RELU
+  type: "ReLU"
   bottom: "conv1"
-  top: "conv1"
+  top: "conv1_r"
+  exclude: { phase: FORWARDB }
 }
-layers {
+
+layer {
   name: "conv2"
-  type: CONVOLUTION
-  bottom: "conv1"
+  type: "Convolution"
+  bottom: "conv1_r"
   top: "conv2"
-  blobs_lr: 1
-  blobs_lr: 2
-  weight_decay: 0
-  weight_decay: 0
+  param {
+    lr_mult: 0.2
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0.4
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 32
     kernel_size: 5
@@ -63,22 +157,30 @@ layers {
       value: 0
     }
   }
+  exclude: { phase: FORWARDB }
 }
-layers {
+
+layer {
   name: "relu2"
-  type: RELU
+  type: "ReLU"
   bottom: "conv2"
-  top: "conv2"
+  top: "conv2_r"
+  exclude: { phase: FORWARDB }
 }
-layers {
+
+layer {
   name: "conv3"
-  type: CONVOLUTION
-  bottom: "conv2"
+  type: "Convolution"
+  bottom: "conv2_r"
   top: "conv3"
-  blobs_lr: 1
-  blobs_lr: 2
-  weight_decay: 0
-  weight_decay: 0
+  param {
+    lr_mult: 0.2
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0.4
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 32
     kernel_size: 5
@@ -92,44 +194,213 @@ layers {
       value: 0
     }
   }
+  exclude: { phase: FORWARDB }
 }
-layers {
+
+layer {
   name: "relu3"
-  type: RELU
+  type: "ReLU"
   bottom: "conv3"
-  top: "conv3"
+  top: "conv3_r"
+  exclude: { phase: FORWARDB }
 }
-layers {
+
+layer {
   name: "softmax"
-  type: SOFTMAX
-  bottom: "conv3"
+  type: "SpatialSoftmax"
+  bottom: "conv3_r"
   top: "image_out"
-  softmax_param {
+  spatial_softmax_param {
     engine: CAFFE
     temperature: 1.0
+    #dimension: "spatial"
   }
+  exclude: { phase: FORWARDB }
 }
-layers {
+
+layer {
   name: "fc_images"
-  type: INNER_PRODUCT
+  type: "InnerProduct"
   bottom: "image_out"
   top: "image_features"
-  blobs_lr: 0
-  blobs_lr: 0
-  weight_decay: 0
-  weight_decay: 0
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
   inner_product_param {
-    num_output: 64
+    num_output: 2  # dimensionality will actually be 2*num_channels
+    axis: -2
     weight_filler {
-      type: "imagexy"
-      channels: 32
-      width: 107
-      height: 107
+      type: "expectation"
+      expectation_option: "xy"
+      width: 109
+      height: 109
     }
     bias_filler {
       type: "constant"
       value: 0
     }
   }
+  exclude: { phase: FORWARDB }
 }
+
+layer {
+  name: "flat_img_features"
+  type: "Flatten"
+  bottom: "image_features"
+  top: "flat_image_features"
+  exclude: { phase: FORWARDB }
+}
+
+layer{
+  name: "reshape"
+  type: "Reshape"
+  bottom: "flat_image_features"
+  top: "flat_image_features"
+  reshape_param{
+    shape {
+      dim : 50
+      dim : 64
+      dim: 1
+      dim: 1
+    } 
+  }
+  include: {phase: TRAIN}
+}
+
+layer{
+  name: "reshape"
+  type: "Reshape"
+  bottom: "flat_image_features"
+  top: "flat_image_features"
+  reshape_param{
+    shape {
+      dim : 1
+      dim : 64
+      dim: 1
+      dim: 1
+    } 
+  }
+  include: {phase: TEST}
+  include: {phase: FORWARDA}
+}
+
+# Concat image layers and joint states
+layer {
+  name: "concat_img_joint"
+  type: "Concat"
+  bottom: "joint_input"
+  bottom: "flat_image_features"
+  top: "concat_img_joint"
+  exclude: { phase: FORWARDA }
+}
+
+layer {
+  name: "fc1_both"
+  type: "InnerProduct"
+  bottom: "concat_img_joint"
+  top: "fc1_both"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  exclude: { phase: FORWARDA }
+}
+layer {
+  name: "relu2_both"
+  type: "ReLU"
+  bottom: "fc1_both"
+  top: "fc1_both"
+  exclude: { phase: FORWARDA }
+}
+layer {
+  name: "fc2_both"
+  type: "InnerProduct"
+  bottom: "fc1_both"
+  top: "fc2_both"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  exclude: { phase: FORWARDA }
+}
+layer {
+  name: "relu3_both"
+  type: "ReLU"
+  bottom: "fc2_both"
+  top: "fc2_both"
+  exclude: { phase: FORWARDA }
+}
+
+layer {
+  name: "fc3_both"
+  type: "InnerProduct"
+  bottom: "fc2_both"
+  top: "nn_output"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 7
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  exclude: { phase: FORWARDA }
+}
+
+layer {
+  name: "loss"
+  type: "WeightedEuclideanLoss"
+  bottom: "nn_output"
+  bottom: "action_input"
+  bottom: "prec_input"
+  top: "euclidean_error"
+  include: { phase: TRAIN }
+}
+
 
