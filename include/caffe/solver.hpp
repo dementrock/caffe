@@ -173,6 +173,22 @@ class AdaDeltaSolver : public SGDSolver<Dtype> {
   DISABLE_COPY_AND_ASSIGN(AdaDeltaSolver);
 };
 
+class AdamSolver : public SGDSolver<Dtype> {
+ public:
+  explicit AdamSolver(const SolverParameter& param)
+      : SGDSolver<Dtype>(param) { initAdam();}
+  explicit AdamSolver(const string& param_file)
+      : SGDSolver<Dtype>(param_file) { initAdam(); }
+
+ protected:
+  virtual void ComputeUpdateValue(int param_id, Dtype rate);
+
+  DISABLE_COPY_AND_ASSIGN(AdamSolver);
+
+  void initAdam();
+  vector<shared_ptr<Blob<Dtype> > > m_, v_;
+};
+
 template <typename Dtype>
 Solver<Dtype>* GetSolver(const SolverParameter& param) {
   SolverParameter_SolverType type = param.solver_type();
@@ -188,6 +204,8 @@ Solver<Dtype>* GetSolver(const SolverParameter& param) {
       return new RMSPropSolver<Dtype>(param);
   case SolverParameter_SolverType_ADADELTA:
       return new AdaDeltaSolver<Dtype>(param);
+  case SolverParameter_SolverType_ADAM:
+      return new AdamSolver<Dtype>(param);
   default:
       LOG(FATAL) << "Unknown SolverType: " << type;
   }
