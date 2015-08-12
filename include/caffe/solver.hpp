@@ -173,6 +173,7 @@ class AdaDeltaSolver : public SGDSolver<Dtype> {
   DISABLE_COPY_AND_ASSIGN(AdaDeltaSolver);
 };
 
+template <typename Dtype>
 class AdamSolver : public SGDSolver<Dtype> {
  public:
   explicit AdamSolver(const SolverParameter& param)
