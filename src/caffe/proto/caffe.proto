@@ -55,12 +55,12 @@ message FillerParameter {
   // **WARNING**: Inner product layer axis must be -2.
   // Dimensions of input blob (assuming a 4D blob) - should be able to figure
   // these out automatically in latest version of caffe (see inner prod layer?)
-  optional int32 width = 8;
-  optional int32 height = 9;
+  optional int32 width = 9;
+  optional int32 height = 10;
   // Options for expectation ("x" computes expected x coordinate,s "y" computes
   // expected y coordinates, "xy" computes expected (x,y) coordinates, "-x^2y^2"
   // computes the expectation over (-x^2, -y^2), for computing variance)
-  optional string expectation_option = 10 [default = "xy"];
+  optional string expectation_option = 11 [default = "xy"];
 
   // Normalize the filler variance by fan_in, fan_out, or their average.
   // Applies to 'xavier' and 'msra' fillers.
@@ -786,8 +786,6 @@ message PythonParameter {
   optional string param_str = 3 [default = ''];
 }
 
-<<<<<<< HEAD
-
 // Message that stores parameters used by RecurrentLayer
 message RecurrentParameter {
   // The dimension of the output (and usually hidden state) representation --
@@ -809,7 +807,8 @@ message RNNParameter {
   optional string recurrent_nonlinearity = 2 [default = "TanH"];
   // Number of hidden units. 0 (default) means use num_output from RecurrentParameter
   optional uint32 num_hidden = 3 [default = 0];
-=======
+}
+
 // Message that stores parameters used by ReductionLayer
 message ReductionParameter {
   enum ReductionOp {
@@ -837,7 +836,6 @@ message ReductionParameter {
   optional int32 axis = 2 [default = 0];
 
   optional float coeff = 3 [default = 1.0]; // coefficient for output
->>>>>>> Add ReductionLayer to reduce any number of "tail" axes to a scalar value
 }
 
 // Message that stores parameters used by ReLULayer

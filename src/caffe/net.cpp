@@ -944,15 +944,6 @@ void Net<Dtype>::ShareWeights() {
 }
 
 template <typename Dtype>
-void Net<Dtype>::ShareWeightData() {
-  for (int i = 0; i < params_.size(); ++i) {
-    if (param_owners_[i] < 0) { continue; }
-    params_[i]->ShareData(*params_[param_owners_[i]]);
-    params_[i]->ShareDiff(*params_[param_owners_[i]]);
-  }
-}
-
-template <typename Dtype>
 bool Net<Dtype>::has_blob(const string& blob_name) const {
   return blob_names_index_.find(blob_name) != blob_names_index_.end();
 }
