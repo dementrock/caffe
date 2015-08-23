@@ -285,8 +285,9 @@ class MemoryDataLayer : public BaseDataLayer<Dtype> {
 
   int batch_size_;
   vector<int> channels_, height_, width_, size_;  // size of each blob
+  bool shuffle_;
   vector<Dtype*> data_;
-  int n_;
+  int n_, ioc_num_conditions_;
   size_t pos_;
   // Blob<Dtype> added_data_;
   // Blob<Dtype> added_label_;

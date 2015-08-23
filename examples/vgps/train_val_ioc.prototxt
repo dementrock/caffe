@@ -218,7 +218,6 @@ layer {
     operation: PROD
   }
 }
-
 layer {
   name: "fc_sum"
   type: "InnerProduct"
@@ -229,7 +228,7 @@ layer {
     decay_mult: 0
   }
   param {
-    lr_mult: 0
+    lr_mult: 2 # 0 if you don't want a constant, a constant lets the cost be negative
     decay_mult: 0
   }
   inner_product_param {

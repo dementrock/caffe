@@ -6,13 +6,13 @@ layer {
   top: "demos"
   top: "dlogis"
   memory_data_param {
-    input_shapes {
+    data_shapes {
       dim: 5  # batch size, must be same as slice point
-      dim: 25  # T
+      dim: 100  # T
       dim: 26  # dimension of phi
       dim: 1
     }
-    input_shapes {
+    data_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 1
       dim: 1
@@ -27,13 +27,13 @@ layer {
   top: "samples"
   top: "slogis"
   memory_data_param {
-    input_shapes {
+    data_shapes {
       dim: 5  # batch size, must be same as slice point
-      dim: 25  # T
+      dim: 100  # T
       dim: 26  # dimension of phi
       dim: 1
     }
-    input_shapes {
+    data_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 1
       dim: 1

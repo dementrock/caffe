@@ -340,7 +340,7 @@ static mxArray* vgps_forward_only(const mxArray* const bottom, int batch_size) {
       if (i == 0) {
         const int num_dim = mxGetNumberOfDimensions(data);
         num_samples = mxGetDimensions(data)[num_dim-1]; // dimensions reversed...
-        LOG(INFO) << num_samples << "< num samples";
+        // LOG(INFO) << num_samples << "< num samples";
       }
     }
 
@@ -797,8 +797,8 @@ static void init_test_batch(MEX_ARGS) {
       if (layer_param.type() != "MemoryData") continue;
       MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
       // Change batch size of all blobs in the memory data layer parameter
-      for (int blob_i = 0; blob_i < mem_param->input_shapes_size(); ++blob_i) {
-        mem_param->mutable_input_shapes(blob_i)->set_dim(0, batch_size);
+      for (int blob_i = 0; blob_i < mem_param->data_shapes_size(); ++blob_i) {
+        mem_param->mutable_data_shapes(blob_i)->set_dim(0, batch_size);
       }
     }
   }
@@ -867,8 +867,8 @@ static void init_forwarda_imgdata(MEX_ARGS) {
       } else if (layer_param.type() == "MemoryData") {
           MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
           // Change batch size of all blobs in the memory data layer parameter
-          for (int blob_i = 0; blob_i < mem_param->input_shapes_size(); ++blob_i) {
-            mem_param->mutable_input_shapes(blob_i)->set_dim(0, batch_size);
+          for (int blob_i = 0; blob_i < mem_param->data_shapes_size(); ++blob_i) {
+            mem_param->mutable_data_shapes(blob_i)->set_dim(0, batch_size);
           }
       }
     }
@@ -924,8 +924,8 @@ static void init_forwarda_batch(MEX_ARGS) {
       if (layer_param.type() != "MemoryData") continue;
       MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
       // Change batch size of all blobs in the memory data layer parameter
-      for (int blob_i = 0; blob_i < mem_param->input_shapes_size(); ++blob_i) {
-        mem_param->mutable_input_shapes(blob_i)->set_dim(0, batch_size);
+      for (int blob_i = 0; blob_i < mem_param->data_shapes_size(); ++blob_i) {
+        mem_param->mutable_data_shapes(blob_i)->set_dim(0, batch_size);
       }
     }
   }
@@ -993,8 +993,8 @@ static void init_forwardb_imgdata(MEX_ARGS) {
       } else if (layer_param.type() == "MemoryData") {
           MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
           // Change batch size of all blobs in the memory data layer parameter
-          for (int blob_i = 0; blob_i < mem_param->input_shapes_size(); ++blob_i) {
-            mem_param->mutable_input_shapes(blob_i)->set_dim(0, batch_size);
+          for (int blob_i = 0; blob_i < mem_param->data_shapes_size(); ++blob_i) {
+            mem_param->mutable_data_shapes(blob_i)->set_dim(0, batch_size);
           }
       }
     }
@@ -1038,8 +1038,8 @@ static void init_forwardb_batch(MEX_ARGS) {
       if (layer_param.type() != "MemoryData") continue;
       MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
       // Change batch size of all blobs in the memory data layer parameter
-      for (int blob_i = 0; blob_i < mem_param->input_shapes_size(); ++blob_i) {
-        mem_param->mutable_input_shapes(blob_i)->set_dim(0, batch_size);
+      for (int blob_i = 0; blob_i < mem_param->data_shapes_size(); ++blob_i) {
+        mem_param->mutable_data_shapes(blob_i)->set_dim(0, batch_size);
       }
     }
   }

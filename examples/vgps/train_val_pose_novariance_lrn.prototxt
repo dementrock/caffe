@@ -3,7 +3,7 @@ layer {
   name: "data"
   type: "HDF5Data"
   top: "position"
-  top: "demo_rgb_frames"
+  top: "rgb_frames"
   hdf5_data_param {
     source: "examples/vgps/train_pose.txt"
     batch_size: 25
@@ -14,7 +14,7 @@ layer {
   name: "data"
   type: "HDF5Data"
   top: "position"
-  top: "demo_rgb_frames"
+  top: "rgb_frames"
   hdf5_data_param {
     source: "examples/vgps/val_pose.txt"
     batch_size: 5
@@ -28,7 +28,7 @@ layer {
   name: "data"
   type: "HDF5Data"
   top: "position"
-  top: "demo_rgb_frames"
+  top: "rgb_frames"
   hdf5_data_param {
     source: "examples/vgps/train_pose.txt"
     batch_size: 5
@@ -43,7 +43,7 @@ layer {
 layer {
   name: "conv1/7x7_s2"
   type: "Convolution"
-  bottom: "demo_rgb_frames"
+  bottom: "rgb_frames"
   top: "conv1"
   param {
     lr_mult: 1
@@ -185,7 +185,7 @@ layer {
   name: "fc1_smaller"
   type: "InnerProduct"
   bottom: "expected_xy"
-  top: "image_features_smaller"
+  top: "est_pose"
   param {
     lr_mult: 5
     decay_mult: 1
@@ -195,7 +195,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 2
+    num_output: 18
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -206,19 +206,19 @@ layer {
     }
   }
 }
-#layer {
-#  name: "euc_distance"
-#  type: "EuclideanDistance"
-#  bottom: "image_features_smaller"
-#  bottom: "position"
-#  top: "average_distance"
-#  include: {phase: TEST}
-#}
+layer {
+  name: "euc_distance"
+  type: "EuclideanDistance"
+  bottom: "est_pose"
+  bottom: "position"
+  top: "average_distance"
+  include: {phase: TEST}
+}
 
 layer {
   name: "loss"
   type: "EuclideanLoss"
-  bottom: "image_features_smaller"
+  bottom: "est_pose"
   bottom: "position"
   top: "euclidean_error"
   loss_weight: 1

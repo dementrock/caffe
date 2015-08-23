@@ -646,9 +646,12 @@ message LRNParameter {
 
 // Message that stores parameters used by MemoryDataLayer
 message MemoryDataParameter {
-  repeated BlobShape input_shapes = 5;
+  repeated BlobShape data_shapes = 5;
 
-  // Deprecated, use input_shapes
+  optional bool shuffle = 6 [default = false];
+  optional uint32 ioc_num_conditions = 7 [default = 1];
+
+  // Deprecated, use data_shapes
   optional uint32 batch_size = 1;
   optional uint32 channels = 2;
   optional uint32 height = 3;

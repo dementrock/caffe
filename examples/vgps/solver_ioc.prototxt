@@ -1,6 +1,6 @@
 train_net: "../caffe/examples/vgps/train_val_ioc.prototxt"
 solver_type: SGD
-# average_loss: 50
+average_loss: 60
 #test_interval: 2000
 base_lr: 0.008 # was 0.008
 lr_policy: "step"
