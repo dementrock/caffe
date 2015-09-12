@@ -7,6 +7,25 @@
 namespace caffe {
 
 template <typename Dtype>
+__global__ void Concat(const int nthreads, const Dtype* in_data,
+    const bool forward, const int num_concats, const int concat_size,
+    const int top_concat_axis, const int bottom_concat_axis,
+    const int offset_concat_axis, Dtype* out_data) {
+  CUDA_KERNEL_LOOP(index, nthreads) {
+    const int total_concat_size = concat_size * bottom_concat_axis;
+    const int concat_num = index / total_concat_size;
+    const int concat_index = index % total_concat_size;
+    const int top_index = concat_index +
+        (concat_num * top_concat_axis + offset_concat_axis) * concat_size;
+    if (forward) {
+      out_data[top_index] = in_data[index];
+    } else {
+      out_data[index] = in_data[top_index];
+    }
+  }
+}
+
+template <typename Dtype>
 void ConcatLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   Dtype* top_data = top[0]->mutable_gpu_data();
@@ -31,6 +50,7 @@ void ConcatLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   const Dtype* top_diff = top[0]->gpu_diff();
   int offset_concat_axis = 0;
   const int top_concat_axis = top[0]->shape(concat_axis_);
+  const bool kForward = false;
   for (int i = 0; i < bottom.size(); ++i) {
     const int bottom_concat_axis = bottom[i]->shape(concat_axis_);
     if (propagate_down[i]) {
